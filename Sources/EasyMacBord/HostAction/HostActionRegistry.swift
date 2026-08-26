@@ -61,4 +61,26 @@ actor HostActionRegistry {
         targets[target.id] = target
         return target
     }
+
+    func makeSystemTarget(title: String, identifier: String, fileURL: URL? = nil) throws -> HostActionTarget {
+        let bookmark = try fileURL.map {
+            try $0.bookmarkData(
+                options: [.withSecurityScope],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+        }
+
+        if let existing = targets.values.first(where: { $0.kind == .system && $0.payload == identifier }) {
+            var updated = existing
+            updated.title = title
+            updated.bookmark = bookmark
+            targets[updated.id] = updated
+            return updated
+        }
+
+        let target = HostActionTarget(kind: .system, title: title, payload: identifier, bookmark: bookmark)
+        targets[target.id] = target
+        return target
+    }
 }

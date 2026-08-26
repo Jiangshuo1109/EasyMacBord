@@ -12,6 +12,8 @@ final class AppModel: ObservableObject {
     @Published var recentRecords: [ExecutionRecord] = []
     @Published var statusMessage = "正在加载本地配置"
     @Published var hostActions: [HostActionTarget] = []
+    @Published private(set) var installedApplications: [InstalledApplication] = []
+    @Published private(set) var isApplicationCatalogLoading = false
     @Published private(set) var isLocalStateReady = false
     @Published private(set) var syncHistory = SyncHistory()
     @Published private(set) var deviceDetails = DeviceDetails()
@@ -93,6 +95,50 @@ final class AppModel: ObservableObject {
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [.applicationBundle]
         guard panel.runModal() == .OK, let url = panel.url else { return }
+        registerApplication(at: url)
+    }
+
+    func registerInstalledApplication(_ application: InstalledApplication) {
+        guard requireLocalStateReady() else { return }
+        registerApplication(at: application.url)
+    }
+
+    func refreshInstalledApplications() {
+        guard !isApplicationCatalogLoading else { return }
+        isApplicationCatalogLoading = true
+        Task { [weak self] in
+            let applications = await Task.detached(priority: .userInitiated) {
+                InstalledApplicationCatalog.discover()
+            }.value
+            guard let self, !Task.isCancelled else { return }
+            self.installedApplications = applications
+            self.isApplicationCatalogLoading = false
+        }
+    }
+
+    func addSystemTool(_ tool: SystemTool) {
+        guard requireLocalStateReady() else { return }
+        guard tool != .wallpaper else {
+            chooseWallpaperAction()
+            return
+        }
+        registerSystemAction(title: tool.title, identifier: tool.rawValue)
+    }
+
+    func chooseWallpaperAction() {
+        guard requireLocalStateReady() else { return }
+        let panel = NSOpenPanel()
+        panel.title = "选择壁纸图片"
+        panel.prompt = "登记动作"
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.image]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        registerSystemAction(title: SystemTool.wallpaper.title, identifier: SystemTool.wallpaper.rawValue, fileURL: url)
+    }
+
+    private func registerApplication(at url: URL) {
         Task { [weak self] in
             guard let self else { return }
             do {
@@ -126,7 +172,7 @@ final class AppModel: ObservableObject {
 
     func addSystemAction(title: String, identifier: String) {
         guard requireLocalStateReady() else { return }
-        registerHostAction(HostActionTarget(kind: .system, title: title, payload: identifier))
+        registerSystemAction(title: title, identifier: identifier)
     }
 
     func removeHostAction(_ id: UUID) {
@@ -288,6 +334,23 @@ final class AppModel: ObservableObject {
             await hostActionRegistry.register(target)
             await updateHostActions()
             statusMessage = "已登记本机动作：\(target.title)"
+        }
+    }
+
+    private func registerSystemAction(title: String, identifier: String, fileURL: URL? = nil) {
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let target = try await hostActionRegistry.makeSystemTarget(
+                    title: title,
+                    identifier: identifier,
+                    fileURL: fileURL
+                )
+                await updateHostActions()
+                statusMessage = "已登记本机动作：\(target.title)"
+            } catch {
+                statusMessage = "无法保存所选文件的访问授权"
+            }
         }
     }
 

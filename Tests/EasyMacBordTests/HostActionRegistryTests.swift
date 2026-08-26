@@ -25,4 +25,16 @@ final class HostActionRegistryTests: XCTestCase {
         let targets = await registry.allTargets()
         XCTAssertEqual(targets, [preserved])
     }
+
+    func testReregisteringSystemToolKeepsExistingUUID() async throws {
+        let registry = HostActionRegistry()
+
+        let first = try await registry.makeSystemTarget(title: "保持亮屏", identifier: "keepAwake")
+        let updated = try await registry.makeSystemTarget(title: "切换保持亮屏", identifier: "keepAwake")
+
+        XCTAssertEqual(updated.id, first.id)
+        XCTAssertEqual(updated.title, "切换保持亮屏")
+        let targets = await registry.allTargets()
+        XCTAssertEqual(targets.count, 1)
+    }
 }

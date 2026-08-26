@@ -23,7 +23,7 @@
     <key>LSMinimumSystemVersion</key>
     <string>26.0</string>
     <key>NSAppleEventsUsageDescription</key>
-    <string>用于运行由你明确选择的 macOS 快捷指令。</string>
+    <string>用于运行由你明确选择的 macOS 快捷指令或控制 Apple Music。</string>
     <key>NSBluetoothAlwaysUsageDescription</key>
     <string>用于连接 EasyInput 设备并同步配置。</string>
 </dict>

@@ -9,6 +9,8 @@ enum ActionExecutionResult: Equatable {
 @MainActor
 final class ActionExecutor {
     private var activeShortcutProcesses: [ObjectIdentifier: Process] = [:]
+    private let displayWakeLock = DisplayWakeLock()
+    private let systemVolume = SystemVolumeController()
 
     func execute(_ target: HostActionTarget) async -> ActionExecutionResult {
         switch target.kind {
@@ -93,8 +95,62 @@ final class ActionExecutor {
             } catch {
                 return .failed("无法锁定屏幕")
             }
+        case "keepAwake":
+            return displayWakeLock.toggle() ? .succeeded : .failed("无法更新保持亮屏状态")
+        case "wallpaper":
+            return changeWallpaper(target)
+        case "volumeUp":
+            return systemVolume.increase() ? .succeeded : .failed("当前音频输出不支持音量控制")
+        case "volumeDown":
+            return systemVolume.decrease() ? .succeeded : .failed("当前音频输出不支持音量控制")
+        case "volumeMute":
+            return systemVolume.toggleMute() ? .succeeded : .failed("当前音频输出不支持静音控制")
+        case "hideFrontmostApplication":
+            guard let application = NSWorkspace.shared.frontmostApplication else {
+                return .failed("没有可隐藏的前台应用")
+            }
+            return application.hide() ? .succeeded : .failed("无法隐藏当前应用")
+        case "musicPlayPause":
+            return runAppleMusic(command: "playpause")
+        case "musicPrevious":
+            return runAppleMusic(command: "previous track")
+        case "musicNext":
+            return runAppleMusic(command: "next track")
         default:
             return .failed("此系统动作尚不可用")
         }
+    }
+
+    private func changeWallpaper(_ target: HostActionTarget) -> ActionExecutionResult {
+        guard let bookmark = target.bookmark else { return .failed("未选择壁纸图片") }
+        var stale = false
+        do {
+            let url = try URL(
+                resolvingBookmarkData: bookmark,
+                options: [.withSecurityScope],
+                relativeTo: nil,
+                bookmarkDataIsStale: &stale
+            )
+            guard !stale else { return .failed("壁纸位置已变更，请重新选择") }
+            let accessed = url.startAccessingSecurityScopedResource()
+            defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+            for screen in NSScreen.screens {
+                let options = NSWorkspace.shared.desktopImageOptions(for: screen) ?? [:]
+                try NSWorkspace.shared.setDesktopImageURL(url, for: screen, options: options)
+            }
+            return .succeeded
+        } catch {
+            return .failed("无法设置所选壁纸")
+        }
+    }
+
+    private func runAppleMusic(command: String) -> ActionExecutionResult {
+        var error: NSDictionary?
+        let source = #"tell application "Music" to "# + command
+        let script = NSAppleScript(source: source)
+        guard script?.executeAndReturnError(&error) != nil else {
+            return .failed("Apple Music 未能执行，请检查自动化授权")
+        }
+        return .succeeded
     }
 }
