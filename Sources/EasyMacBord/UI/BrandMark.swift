@@ -26,6 +26,7 @@ enum BrandMark {
     static var menuBarImage: Image {
         if let menuBarLogo {
             return Image(nsImage: menuBarLogo)
+                .renderingMode(.template)
         }
         return Image(systemName: "keyboard")
     }

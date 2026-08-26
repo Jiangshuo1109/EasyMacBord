@@ -1,5 +1,17 @@
 import Foundation
 
+extension TransportChannel {
+    /// Converts the transport values exposed by macOS IOKit into the two
+    /// channels defined by the EasyInput V2 contract.
+    static func fromHIDTransportName(_ name: String?) -> Self? {
+        switch name {
+        case "USB": .usb
+        case "Bluetooth", "Bluetooth Low Energy": .bluetooth
+        default: nil
+        }
+    }
+}
+
 @MainActor
 protocol ConfigurationTransport: AnyObject {
     var channel: TransportChannel { get }
@@ -10,6 +22,16 @@ protocol ConfigurationTransport: AnyObject {
 enum TransportError: Swift.Error, Equatable {
     case unavailable(TransportChannel)
     case writeFailed(TransportChannel)
+}
+
+enum EventChannelRouter {
+    static func activeEventChannel(
+        usbAvailable: Bool,
+        bluetoothHIDAvailable: Bool
+    ) -> TransportChannel? {
+        if usbAvailable { return .usb }
+        return bluetoothHIDAvailable ? .bluetooth : nil
+    }
 }
 
 @MainActor

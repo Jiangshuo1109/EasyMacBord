@@ -40,4 +40,16 @@ final class TransportRouterTests: XCTestCase {
         XCTAssertEqual(channel, .bluetooth)
         XCTAssertEqual(bluetooth.frames, [frame])
     }
+
+    func testEventRouterPrefersUSBButAcceptsBluetoothHIDWithoutConfigurationGATT() {
+        XCTAssertEqual(
+            EventChannelRouter.activeEventChannel(usbAvailable: true, bluetoothHIDAvailable: true),
+            .usb
+        )
+        XCTAssertEqual(
+            EventChannelRouter.activeEventChannel(usbAvailable: false, bluetoothHIDAvailable: true),
+            .bluetooth
+        )
+        XCTAssertNil(EventChannelRouter.activeEventChannel(usbAvailable: false, bluetoothHIDAvailable: false))
+    }
 }

@@ -20,6 +20,13 @@ final class DeviceSession {
                 name: "EasyInput AI"
             ))
         }
+        usb.eventConnectionHandler = { [weak self] channel, connected in
+            guard channel == .bluetooth, let self, !self.usb.isAvailable else { return }
+            self.connectionHandler?(DeviceConnection(
+                state: connected ? .connected(.bluetooth) : self.fallbackConnectionState(),
+                name: "EasyInput AI"
+            ))
+        }
         bluetooth.connectionHandler = { [weak self] connected in
             guard let self, !self.usb.isAvailable else { return }
             self.connectionHandler?(DeviceConnection(
@@ -34,9 +41,9 @@ final class DeviceSession {
     }
 
     func start() {
+        connectionHandler?(DeviceConnection(state: .connecting, name: "EasyInput AI"))
         usb.start()
         bluetooth.start()
-        connectionHandler?(DeviceConnection(state: .connecting, name: "EasyInput AI"))
     }
 
     func stop() {
@@ -50,7 +57,7 @@ final class DeviceSession {
     }
 
     private func receiveHID(channel: TransportChannel, payload: Data) {
-        guard router.activeEventChannel == channel else { return }
+        guard usb.activeEventChannel == channel else { return }
         appCommandHandler?(payload)
     }
 

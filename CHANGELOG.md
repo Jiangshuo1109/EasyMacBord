@@ -15,10 +15,12 @@
 - 四页导航、三栏配置编辑、11 个控制事件、同步历史与未知设备信息展示。
 - Debug 专用 `--ui-state` 截图状态；Release 不包含该入口。
 - 配置档、动作库和同步历史的版本化写入，避免晚到的旧快照覆盖最新编辑。
+- macOS `Bluetooth Low Energy` HID 传输名归一化，以及与蓝牙配置 GATT 独立的输入事件仲裁。
+- 菜单栏专用模板图标的显式模板渲染。
 
 ### 已验证
 
-- Xcode 27.0 beta 6 的 `arm64` 编译和 31 项单元测试。
+- Xcode 27.0 beta 6 的 `arm64` 编译和 35 项单元测试。
 - ad-hoc 签名、无 Team Identifier 的 `.app`、DMG 与 SHA-256 摘要。
 
 ### 未验证

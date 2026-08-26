@@ -7,8 +7,10 @@ import Foundation
 final class USBHIDTransport: ConfigurationTransport {
     let channel: TransportChannel = .usb
     private(set) var isAvailable = false
+    private(set) var isBluetoothHIDAvailable = false
     var appCommandHandler: ((TransportChannel, Data) -> Void)?
     var connectionHandler: ((Bool) -> Void)?
+    var eventConnectionHandler: ((TransportChannel, Bool) -> Void)?
 
     private let manager: IOHIDManager
     private var activeDevice: IOHIDDevice?
@@ -88,13 +90,23 @@ final class USBHIDTransport: ConfigurationTransport {
         }
     }
 
+    var activeEventChannel: TransportChannel? {
+        EventChannelRouter.activeEventChannel(
+            usbAvailable: isAvailable,
+            bluetoothHIDAvailable: isBluetoothHIDAvailable
+        )
+    }
+
     private func attach(_ device: IOHIDDevice) {
         guard let eventChannel = eventChannel(for: device) else { return }
         if eventChannel == .usb {
             activeDevice = device
             isAvailable = true
             connectionHandler?(true)
+        } else {
+            isBluetoothHIDAvailable = true
         }
+        eventConnectionHandler?(eventChannel, true)
 
         let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: DeviceProtocol.appCommandPayloadLength)
         inputBuffers.append(buffer)
@@ -118,18 +130,21 @@ final class USBHIDTransport: ConfigurationTransport {
     }
 
     private func detach(_ device: IOHIDDevice) {
-        if let activeDevice, CFEqual(activeDevice, device) {
+        guard let eventChannel = eventChannel(for: device) else { return }
+        if eventChannel == .usb, let activeDevice, CFEqual(activeDevice, device) {
             self.activeDevice = nil
             isAvailable = false
             connectionHandler?(false)
+            eventConnectionHandler?(.usb, false)
+        } else if eventChannel == .bluetooth {
+            isBluetoothHIDAvailable = false
+            eventConnectionHandler?(.bluetooth, false)
         }
     }
 
     private func eventChannel(for device: IOHIDDevice) -> TransportChannel? {
-        switch IOHIDDeviceGetProperty(device, kIOHIDTransportKey as CFString) as? String {
-        case "USB": .usb
-        case "Bluetooth": .bluetooth
-        default: nil
-        }
+        TransportChannel.fromHIDTransportName(
+            IOHIDDeviceGetProperty(device, kIOHIDTransportKey as CFString) as? String
+        )
     }
 }
