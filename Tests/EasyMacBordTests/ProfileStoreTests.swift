@@ -39,4 +39,18 @@ final class ProfileStoreTests: XCTestCase {
         XCTAssertEqual(profiles, [fixtureProfile])
         try? FileManager.default.removeItem(at: directory)
     }
+
+    func testNewerSaveRevisionWinsWhenRequestsArriveOutOfOrder() async throws {
+        let directory = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
+        let store = ProfileStore(fileURL: directory.appendingPathComponent("profiles.json"))
+        let older = [fixtureProfile]
+        let newer = [Profile(name: "会议", updatedAt: Date(timeIntervalSince1970: 1_700_000_001))]
+
+        try await store.save(newer, revision: 2)
+        try await store.save(older, revision: 1)
+
+        let loaded = try await store.load()
+        XCTAssertEqual(loaded, newer)
+        try? FileManager.default.removeItem(at: directory)
+    }
 }

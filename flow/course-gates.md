@@ -8,13 +8,13 @@
 | 02 | 建立 macOS 测试与构建基线 | PASS：Xcode 27.0 beta 6，Swift 6.4，arm64 |
 | 03 | 追踪 HID 输入到本机执行链路 | PASS：见架构文档 |
 | 04 | 冻结消费者协议与测试向量 | PASS：见技术文档 |
-| 05 | 纯逻辑编码、确认和 UUID 测试 | PASS：`swift test`，18/18 通过 |
+| 05 | 纯逻辑编码、确认和 UUID 测试 | PASS：完整 Swift 测试覆盖协议、确认、UUID、配置迁移和本地保存顺序；数量以构建记录为准 |
 | 06 | KEY1-KEY8 与旋钮配置覆盖 | PASS：序列化测试覆盖 8 键和旋钮 |
-| 07 | USB/BLE 路由和不双发 | WRITTEN：待完整工具链执行与真机确认 |
+| 07 | USB/蓝牙配置通道路由和不双发 | PARTIAL：USB 优先与失败不回退已单元测试；实体设备单发仍待真机确认 |
 | 08 | 消费设备能力状态，不修改能力声明 | PENDING：待真机状态读取 |
-| 09 | 全量 App 测试和 arm64 构建 | PASS：测试 18/18，Release 为 thin arm64 |
+| 09 | 全量 App 测试和 arm64 构建 | PASS：本机 Xcode 27 完整测试与 Release thin arm64 构建已通过；beta 打包记录见构建文档 |
 | 10 | Git 全量改动与忽略项审计 | PASS：已检查暂存差异、`.build/` 忽略和初始本地提交；远程同步另计 |
 | 11 | 固件烧录 | N/A：本仓库不烧录、不调用 esptool/idf.py |
-| 12 | USB/BLE 真机矩阵 | PENDING：需人工观察 |
+| 12 | USB/蓝牙配置通道真机矩阵 | PENDING：需人工观察 |
 
 `N/A` 不是通过。固件专属事项由上游 Maker 工程负责；本项目不得用 Mac 端测试代替固件或实物证据。

@@ -11,6 +11,7 @@ actor ProfileStore {
     }
 
     private let fileURL: URL
+    private var latestWriteRevision: UInt64 = 0
 
     init(fileURL: URL? = nil) {
         if let fileURL {
@@ -38,6 +39,13 @@ actor ProfileStore {
     }
 
     func save(_ profiles: [Profile]) throws {
+        latestWriteRevision &+= 1
+        try save(profiles, revision: latestWriteRevision)
+    }
+
+    func save(_ profiles: [Profile], revision: UInt64) throws {
+        guard revision >= latestWriteRevision else { return }
+        latestWriteRevision = revision
         let directory = fileURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let data = try JSONEncoder.pretty.encode(Document(schemaVersion: 1, profiles: profiles))

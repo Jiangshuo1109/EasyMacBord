@@ -1,4 +1,5 @@
 import ApplicationServices
+import AppKit
 import Foundation
 
 enum PermissionKind: String, CaseIterable, Identifiable {
@@ -48,4 +49,28 @@ final class PermissionCenter: ObservableObject {
     func state(for kind: PermissionKind) -> PermissionState {
         states[kind] ?? .notChecked
     }
+
+    func canOpenSettings(for kind: PermissionKind) -> Bool {
+        kind != .automation
+    }
+
+    func openSettings(for kind: PermissionKind) {
+        let anchor: String
+        switch kind {
+        case .accessibility:
+            anchor = "Privacy_Accessibility"
+        case .screenRecording:
+            anchor = "Privacy_ScreenCapture"
+        case .automation:
+            return
+        }
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)") else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+#if DEBUG
+    func applyDebugStates(_ values: [PermissionKind: PermissionState]) {
+        states = values
+    }
+#endif
 }

@@ -96,6 +96,17 @@ struct Profile: Codable, Identifiable, Hashable {
             .key2: ActionBinding(kind: .fixedText, value: "待办：", title: "输入待办前缀")
         ]
     )
+
+    static func nextName(existingNames: [String]) -> String {
+        let base = "新建配置档"
+        guard existingNames.contains(base) else { return base }
+
+        var suffix = 2
+        while existingNames.contains("\(base) \(suffix)") {
+            suffix += 1
+        }
+        return "\(base) \(suffix)"
+    }
 }
 
 enum TransportChannel: String, Codable, CaseIterable, Identifiable {
@@ -107,7 +118,7 @@ enum TransportChannel: String, Codable, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .usb: "USB"
-        case .bluetooth: "蓝牙"
+        case .bluetooth: "蓝牙配置通道"
         }
     }
 }
@@ -142,11 +153,86 @@ enum SyncState: Equatable {
     }
 }
 
+enum DeviceInformationState: Equatable {
+    case unknown
+    case value(String)
+
+    var title: String {
+        switch self {
+        case .unknown: "未读取"
+        case .value(let value): value
+        }
+    }
+}
+
+struct DeviceDetails: Equatable {
+    var firmwareVersion: DeviceInformationState = .unknown
+    var backupTransport: DeviceInformationState = .unknown
+    var capabilities: DeviceInformationState = .unknown
+}
+
+struct SyncReceipt: Codable, Equatable {
+    let phase: UInt8
+    let bytes: UInt16
+    let crc16: UInt16
+    let saved: Bool
+
+    init(_ acknowledgement: DeviceProtocol.ConfigurationAcknowledgement) {
+        phase = acknowledgement.phase
+        bytes = acknowledgement.bytes
+        crc16 = acknowledgement.crc16
+        saved = acknowledgement.saved
+    }
+}
+
+struct SyncHistory: Codable, Equatable {
+    private(set) var lastConfirmedAt: Date?
+    private(set) var lastReceipt: SyncReceipt?
+    private(set) var latestFailure: String?
+
+    mutating func recordConfirmation(_ acknowledgement: DeviceProtocol.ConfigurationAcknowledgement, at date: Date = .now) {
+        lastConfirmedAt = date
+        lastReceipt = SyncReceipt(acknowledgement)
+        latestFailure = nil
+    }
+
+    mutating func recordFailure(_ reason: String) {
+        latestFailure = reason
+    }
+}
+
+enum LocalSaveState: Equatable {
+    case saving
+    case saved
+    case failed
+
+    var title: String {
+        switch self {
+        case .saving: "正在保存本地更改"
+        case .saved: "本地更改已保存"
+        case .failed: "本地保存失败"
+        }
+    }
+}
+
 struct ExecutionRecord: Identifiable, Equatable {
     let id = UUID()
     let timestamp: Date
     let actionTitle: String
     let result: ResultState
+    let source: Source
+
+    enum Source: Equatable {
+        case device
+        case manualTest
+
+        var title: String {
+            switch self {
+            case .device: "设备触发"
+            case .manualTest: "手动测试"
+            }
+        }
+    }
 
     enum ResultState: Equatable {
         case success

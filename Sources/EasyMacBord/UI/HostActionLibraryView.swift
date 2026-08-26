@@ -25,7 +25,7 @@ struct HostActionLibraryView: View {
                 }
             }
 
-            Section("已登记") {
+            Section("已登记的动作") {
                 if model.hostActions.isEmpty {
                     ContentUnavailableView("没有本机动作", systemImage: "bolt.slash", description: Text("登记后可在配置档中选择。"))
                 } else {
@@ -36,14 +36,11 @@ struct HostActionLibraryView: View {
                                 .frame(width: 20)
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(target.title)
-                                Text(target.id.uuidString.lowercased())
-                                    .font(.caption.monospaced())
+                                Text(kindTitle(target.kind))
+                                    .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
                             Spacer()
-                            Text(kindTitle(target.kind))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
                         }
                         .contextMenu {
                             Button("移除", role: .destructive) {
@@ -59,7 +56,7 @@ struct HostActionLibraryView: View {
                 }
             }
         }
-        .navigationTitle("本机动作")
+        .navigationTitle("管理本机动作")
         .sheet(isPresented: $showingURLForm) {
             URLActionForm { title, url in
                 model.addURLAction(title: title, url: url)

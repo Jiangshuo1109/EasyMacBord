@@ -1,17 +1,18 @@
-name: macOS build
+name: macOS 26 build
 
 on:
   push:
-    branches: [main]
   pull_request:
     branches: [main]
 
 jobs:
   test:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - name: Show toolchain
         run: swift --version
       - name: Run tests
-        run: swift test
+        run: swift test --jobs 4
+      - name: Build arm64 release binary
+        run: swift build --configuration release --arch arm64

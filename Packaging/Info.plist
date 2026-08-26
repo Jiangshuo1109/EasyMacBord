@@ -8,6 +8,8 @@
     <string>EasyMacBord</string>
     <key>CFBundleIdentifier</key>
     <string>com.easymacbord.app</string>
+    <key>CFBundleIconFile</key>
+    <string>EasyMacBord</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>

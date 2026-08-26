@@ -11,6 +11,9 @@ let package = Package(
         .executableTarget(
             name: "EasyMacBord",
             path: "Sources/EasyMacBord",
+            resources: [
+                .process("Resources")
+            ],
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("ApplicationServices"),

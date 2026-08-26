@@ -1,7 +1,7 @@
 import Foundation
 @preconcurrency import IOKit.hid
 
-/// Matches only the published EasyInput USB/BLE HID identity. The adapter has
+/// Matches only the published EasyInput transport identity. The adapter has
 /// no knowledge of user mappings or application paths.
 @MainActor
 final class USBHIDTransport: ConfigurationTransport {

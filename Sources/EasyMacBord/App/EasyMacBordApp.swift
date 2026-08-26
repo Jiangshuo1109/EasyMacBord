@@ -6,27 +6,36 @@ enum AppWindowID {
 
 @main
 struct EasyMacBordApp: App {
-    @StateObject private var model = AppModel()
+    @StateObject private var model: AppModel
+
+    init() {
+#if DEBUG
+        let debugUIState = DebugUIState(arguments: ProcessInfo.processInfo.arguments)
+        let model = AppModel(startServices: debugUIState == nil)
+        if let debugUIState {
+            model.applyDebugUIState(debugUIState)
+        }
+        _model = StateObject(wrappedValue: model)
+#else
+        _model = StateObject(wrappedValue: AppModel())
+#endif
+    }
 
     var body: some Scene {
-        MenuBarExtra("EasyMacBord", systemImage: menuBarSymbol) {
+        MenuBarExtra {
             MenuPanel(model: model)
                 .frame(width: 300)
+        } label: {
+            BrandMark.menuBarImage
+                .accessibilityLabel("EasyMacBord")
         }
         .menuBarExtraStyle(.window)
 
         WindowGroup("EasyMacBord", id: AppWindowID.main) {
             RootView(model: model)
-                .frame(minWidth: 980, minHeight: 680)
+                .frame(minWidth: 1120, minHeight: 720)
         }
-        .defaultSize(width: 1120, height: 760)
+        .defaultSize(width: 1280, height: 800)
     }
 
-    private var menuBarSymbol: String {
-        switch model.connection.state {
-        case .connected: "keyboard.badge.ellipsis"
-        case .connecting: "arrow.triangle.2.circlepath"
-        case .disconnected, .unavailable: "keyboard"
-        }
-    }
 }

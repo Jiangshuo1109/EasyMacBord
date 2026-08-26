@@ -18,4 +18,18 @@ final class HostActionStoreTests: XCTestCase {
         XCTAssertEqual(loaded, [target])
         try? FileManager.default.removeItem(at: directory)
     }
+
+    func testNewerSaveRevisionWinsWhenRequestsArriveOutOfOrder() async throws {
+        let directory = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
+        let store = HostActionStore(fileURL: directory.appendingPathComponent("host-actions.json"))
+        let older = [HostActionTarget(kind: .url, title: "旧动作", payload: "https://example.com/old")]
+        let newer = [HostActionTarget(kind: .url, title: "新动作", payload: "https://example.com/new")]
+
+        try await store.save(newer, revision: 2)
+        try await store.save(older, revision: 1)
+
+        let loaded = try await store.load()
+        XCTAssertEqual(loaded, newer)
+        try? FileManager.default.removeItem(at: directory)
+    }
 }

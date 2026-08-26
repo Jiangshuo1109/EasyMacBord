@@ -4,7 +4,6 @@ import SwiftUI
 private enum AppSection: String, CaseIterable, Identifiable {
     case overview
     case profiles
-    case actions
     case device
     case permissions
 
@@ -14,7 +13,6 @@ private enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .overview: "状态总览"
         case .profiles: "配置档"
-        case .actions: "本机动作"
         case .device: "设备与同步"
         case .permissions: "权限"
         }
@@ -24,7 +22,6 @@ private enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .overview: "rectangle.grid.2x2"
         case .profiles: "rectangle.3.group"
-        case .actions: "bolt.circle"
         case .device: "keyboard"
         case .permissions: "checklist"
         }
@@ -37,9 +34,20 @@ struct RootView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(AppSection.allCases, selection: $selection) { section in
-                Label(section.title, systemImage: section.symbol)
-                    .tag(section)
+            List(selection: $selection) {
+                Section {
+                    SidebarDeviceSummary(connection: model.connection)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 12, trailing: 8))
+                        .listRowBackground(Color.clear)
+                        .accessibilityElement(children: .combine)
+                }
+
+                Section {
+                    ForEach(AppSection.allCases) { section in
+                        Label(section.title, systemImage: section.symbol)
+                            .tag(section)
+                    }
+                }
             }
             .navigationTitle("EasyMacBord")
             .listStyle(.sidebar)
@@ -49,25 +57,57 @@ struct RootView: View {
                 DashboardView(model: model)
             case .profiles:
                 ProfileEditorView(model: model)
-            case .actions:
-                HostActionLibraryView(model: model)
             case .device:
                 DeviceSyncView(model: model)
             case .permissions:
                 PermissionsView(model: model)
             }
         }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button("同步", systemImage: "arrow.triangle.2.circlepath") {
-                    model.beginSync()
-                }
-                .disabled({
-                    if case .connected = model.connection.state { return false }
-                    return true
-                }())
+    }
+}
+
+private struct SidebarDeviceSummary: View {
+    let connection: DeviceConnection
+
+    var body: some View {
+        HStack(spacing: 10) {
+            BrandMark.image
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(width: 34, height: 34)
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(connection.name)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Label(statusTitle, systemImage: statusSymbol)
+                    .font(.caption)
+                    .foregroundStyle(statusColor)
             }
         }
+        .padding(10)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var statusTitle: String {
+        switch connection.state {
+        case .connected(let channel): "\(channel.title) 已连接"
+        case .connecting: "正在查找设备"
+        case .disconnected: "未连接"
+        case .unavailable(let reason): reason
+        }
+    }
+
+    private var statusSymbol: String {
+        if case .connected = connection.state { return "circle.fill" }
+        return "circle.dashed"
+    }
+
+    private var statusColor: Color {
+        if case .connected = connection.state { return .green }
+        return .secondary
     }
 }
 
@@ -99,6 +139,7 @@ struct MenuPanel: View {
                 }
             }
             .labelsHidden()
+            .disabled(!model.isLocalStateReady)
 
             Button("打开设置", systemImage: "gearshape") {
                 NSApplication.shared.activate(ignoringOtherApps: true)
