@@ -22,7 +22,12 @@ final class TransportRouterTests: XCTestCase {
         let bluetooth = InMemoryTransport(channel: .bluetooth, isAvailable: true)
         let router = TransportRouter(usb: usb, bluetooth: bluetooth)
 
-        await XCTAssertThrowsErrorAsync(try await router.send([frame]))
+        do {
+            _ = try await router.send([frame])
+            XCTFail("Expected USB write failure")
+        } catch {
+            // Expected: USB failures do not fall back to Bluetooth.
+        }
         XCTAssertTrue(bluetooth.frames.isEmpty)
     }
 
@@ -34,18 +39,5 @@ final class TransportRouterTests: XCTestCase {
         let channel = try await router.send([frame])
         XCTAssertEqual(channel, .bluetooth)
         XCTAssertEqual(bluetooth.frames, [frame])
-    }
-}
-
-private func XCTAssertThrowsErrorAsync<T>(
-    _ expression: @autoclosure () async throws -> T,
-    file: StaticString = #filePath,
-    line: UInt = #line
-) async {
-    do {
-        _ = try await expression()
-        XCTFail("Expected an error", file: file, line: line)
-    } catch {
-        // Expected.
     }
 }

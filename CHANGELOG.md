@@ -12,7 +12,11 @@
 - USB 优先、BLE 备用的配置路由与相应测试。
 - v0.1 的 SRS、原型、联调和发布文档。
 
+### 已验证
+
+- Xcode 27.0 beta 6 的 `arm64` 编译和 18 项单元测试。
+- ad-hoc 签名、无 Team Identifier 的 `.app` 和 DMG 完整性。
+
 ### 未验证
 
-- 完整 Xcode 构建、ad-hoc 签名和 DMG。
 - USB/BLE 真机配置确认与 Host Action 实际执行。

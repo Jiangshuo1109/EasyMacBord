@@ -1,5 +1,5 @@
 import Foundation
-import IOKit.hid
+@preconcurrency import IOKit.hid
 
 /// Matches only the published EasyInput USB/BLE HID identity. The adapter has
 /// no knowledge of user mappings or application paths.
@@ -56,7 +56,7 @@ final class USBHIDTransport: ConfigurationTransport {
         )
     }
 
-    deinit {
+    isolated deinit {
         inputBuffers.forEach { $0.deallocate() }
         IOHIDManagerClose(manager, IOOptionBits(kIOHIDOptionsTypeNone))
     }
@@ -76,7 +76,7 @@ final class USBHIDTransport: ConfigurationTransport {
         for frame in frames {
             let result = frame.payload.withUnsafeBytes { bytes in
                 guard let address = bytes.baseAddress else { return kIOReturnBadArgument }
-                IOHIDDeviceSetReport(
+                return IOHIDDeviceSetReport(
                     activeDevice,
                     kIOHIDReportTypeFeature,
                     CFIndex(DeviceProtocol.configurationReportID),
