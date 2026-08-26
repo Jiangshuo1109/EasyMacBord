@@ -1,5 +1,9 @@
 import SwiftUI
 
+enum AppWindowID {
+    static let main = "main-window"
+}
+
 @main
 struct EasyMacBordApp: App {
     @StateObject private var model = AppModel()
@@ -11,7 +15,7 @@ struct EasyMacBordApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        WindowGroup("EasyMacBord") {
+        WindowGroup("EasyMacBord", id: AppWindowID.main) {
             RootView(model: model)
                 .frame(minWidth: 980, minHeight: 680)
         }

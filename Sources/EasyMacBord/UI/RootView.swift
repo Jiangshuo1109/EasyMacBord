@@ -73,6 +73,7 @@ struct RootView: View {
 
 struct MenuPanel: View {
     @ObservedObject var model: AppModel
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -101,7 +102,7 @@ struct MenuPanel: View {
 
             Button("打开设置", systemImage: "gearshape") {
                 NSApplication.shared.activate(ignoringOtherApps: true)
-                NSApplication.shared.windows.first?.makeKeyAndOrderFront(nil)
+                openWindow(id: AppWindowID.main)
             }
             Button("退出 EasyMacBord", systemImage: "power") {
                 NSApplication.shared.terminate(nil)
