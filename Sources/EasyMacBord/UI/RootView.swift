@@ -4,8 +4,11 @@ import SwiftUI
 private enum AppSection: String, CaseIterable, Identifiable {
     case overview
     case profiles
+    case actions
     case device
     case permissions
+    case settings
+    case about
 
     var id: String { rawValue }
 
@@ -13,8 +16,11 @@ private enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .overview: "状态总览"
         case .profiles: "配置档"
+        case .actions: "动作库"
         case .device: "设备与同步"
         case .permissions: "权限"
+        case .settings: "设置"
+        case .about: "关于"
         }
     }
 
@@ -22,81 +28,120 @@ private enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .overview: "rectangle.grid.2x2"
         case .profiles: "rectangle.3.group"
+        case .actions: "bolt"
         case .device: "keyboard"
         case .permissions: "checklist"
+        case .settings: "gearshape"
+        case .about: "info.circle"
         }
     }
 }
 
 struct RootView: View {
     @ObservedObject var model: AppModel
+    @ObservedObject var preferences: AppPreferences
     @State private var selection: AppSection? = .overview
 
     var body: some View {
         NavigationSplitView {
-            List(selection: $selection) {
-                Section {
-                    SidebarDeviceSummary(connection: model.connection)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 12, trailing: 8))
-                        .listRowBackground(Color.clear)
-                        .accessibilityElement(children: .combine)
-                }
+            VStack(spacing: 0) {
+                List(selection: $selection) {
+                    Section {
+                        SidebarBrandHeader(connection: model.connection)
+                            .listRowInsets(EdgeInsets(top: 10, leading: 10, bottom: 12, trailing: 10))
+                            .listRowBackground(Color.clear)
+                            .accessibilityElement(children: .combine)
+                    }
 
-                Section {
-                    ForEach(AppSection.allCases) { section in
+                    Section {
+                        ForEach([AppSection.overview, .profiles, .actions, .device, .permissions]) { section in
+                            Label(section.title, systemImage: section.symbol)
+                                .tag(section)
+                        }
+                    }
+                }
+                .listStyle(.sidebar)
+
+                Divider()
+
+                List(selection: $selection) {
+                    ForEach([AppSection.settings, .about]) { section in
                         Label(section.title, systemImage: section.symbol)
                             .tag(section)
                     }
                 }
+                .listStyle(.sidebar)
+                .frame(height: 88)
             }
             .navigationTitle("EasyMacBord")
-            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 216, ideal: 232, max: 280)
         } detail: {
             switch selection ?? .overview {
             case .overview:
                 DashboardView(model: model)
             case .profiles:
                 ProfileEditorView(model: model)
+            case .actions:
+                HostActionLibraryView(model: model)
             case .device:
                 DeviceSyncView(model: model)
             case .permissions:
                 PermissionsView(model: model)
+            case .settings:
+                PreferencesView(preferences: preferences)
+            case .about:
+                AboutView()
             }
         }
     }
 }
 
-private struct SidebarDeviceSummary: View {
+private struct SidebarBrandHeader: View {
     let connection: DeviceConnection
 
     var body: some View {
-        HStack(spacing: 10) {
-            BrandMark.image
-                .resizable()
-                .interpolation(.high)
-                .scaledToFit()
-                .frame(width: 34, height: 34)
-                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(connection.name)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                Label(statusTitle, systemImage: statusSymbol)
-                    .font(.caption)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                BrandMark.image
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .frame(width: 40, height: 40)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("EasyMacBord")
+                        .font(.headline)
+                    Text("日常效率工具")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            HStack(spacing: 6) {
+                Image(systemName: statusSymbol)
+                    .font(.caption2)
                     .foregroundStyle(statusColor)
+                Text(connection.name)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .help(connection.name)
+                Spacer(minLength: 0)
+                Text(statusTitle)
+                    .font(.caption2)
+                    .foregroundStyle(statusColor)
+                    .lineLimit(1)
             }
         }
-        .padding(10)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .padding(.vertical, 4)
     }
 
     private var statusTitle: String {
         switch connection.state {
         case .connected(let channel): "\(channel.title) 已连接"
-        case .connecting: "正在查找设备"
+        case .connecting: "正在查找"
         case .disconnected: "未连接"
-        case .unavailable(let reason): reason
+        case .unavailable: "不可用"
         }
     }
 
@@ -113,7 +158,6 @@ private struct SidebarDeviceSummary: View {
 
 struct MenuPanel: View {
     @ObservedObject var model: AppModel
-    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -142,8 +186,7 @@ struct MenuPanel: View {
             .disabled(!model.isLocalStateReady)
 
             Button("打开设置", systemImage: "gearshape") {
-                NSApplication.shared.activate(ignoringOtherApps: true)
-                openWindow(id: AppWindowID.main)
+                MainWindowCoordinator.shared.showMainWindow()
             }
             Button("退出 EasyMacBord", systemImage: "power") {
                 NSApplication.shared.terminate(nil)

@@ -8,9 +8,7 @@ struct PermissionsView: View {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("权限")
-                            .font(.title2.weight(.semibold))
-                        Text("仅在系统允许检查时显示当前状态")
+                        Text("按实际使用结果更新授权状态")
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
@@ -26,6 +24,7 @@ struct PermissionsView: View {
                             kind: permission,
                             state: model.permissions.state(for: permission),
                             canOpenSettings: model.permissions.canOpenSettings(for: permission),
+                            requestAccessibility: { model.permissions.requestAccessibility() },
                             openSettings: { model.permissions.openSettings(for: permission) }
                         )
                         if permission != PermissionKind.allCases.last {
@@ -55,6 +54,7 @@ private struct PermissionRow: View {
     let kind: PermissionKind
     let state: PermissionState
     let canOpenSettings: Bool
+    let requestAccessibility: () -> Void
     let openSettings: () -> Void
 
     var body: some View {
@@ -74,6 +74,12 @@ private struct PermissionRow: View {
             Label(state.title, systemImage: stateSymbol)
                 .font(.subheadline)
                 .foregroundStyle(stateColor)
+            if kind == .accessibility, state != .granted {
+                Button("请求权限") {
+                    requestAccessibility()
+                }
+                .buttonStyle(.borderedProminent)
+            }
             if canOpenSettings, state != .granted {
                 Button("系统设置") {
                     openSettings()
@@ -87,7 +93,6 @@ private struct PermissionRow: View {
     private var symbol: String {
         switch kind {
         case .accessibility: "accessibility"
-        case .screenRecording: "rectangle.on.rectangle"
         case .automation: "gearshape"
         }
     }
@@ -95,8 +100,7 @@ private struct PermissionRow: View {
     private var description: String {
         switch kind {
         case .accessibility: "用于需要系统辅助功能支持的操作。"
-        case .screenRecording: "仅在相关动作请求屏幕内容时需要。"
-        case .automation: "由具体快捷指令或自动化操作按需请求。"
+        case .automation: "由快捷指令或应用控制操作在实际执行后更新。"
         }
     }
 
@@ -105,6 +109,7 @@ private struct PermissionRow: View {
         case .granted: "checkmark.circle.fill"
         case .required: "exclamationmark.circle.fill"
         case .notChecked: "minus.circle"
+        case .actionFailed: "xmark.circle.fill"
         }
     }
 
@@ -113,6 +118,7 @@ private struct PermissionRow: View {
         case .granted: .green
         case .required: .orange
         case .notChecked: .secondary
+        case .actionFailed: .red
         }
     }
 }

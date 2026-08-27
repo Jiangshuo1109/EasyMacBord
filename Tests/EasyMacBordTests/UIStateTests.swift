@@ -41,6 +41,15 @@ final class UIStateTests: XCTestCase {
         XCTAssertNil(DebugUIState(arguments: ["EasyMacBord", "--ui-state", "unsupported"]))
     }
 
+    func testDebugWindowSizeParsesOnlyPositiveDimensions() {
+        XCTAssertEqual(
+            DebugWindowSize(arguments: ["EasyMacBord", "--window-size", "1120x720"]),
+            DebugWindowSize(width: 1120, height: 720)
+        )
+        XCTAssertNil(DebugWindowSize(arguments: ["EasyMacBord", "--window-size", "0x720"]))
+        XCTAssertNil(DebugWindowSize(arguments: ["EasyMacBord", "--window-size", "1120"]))
+    }
+
     func testNewProfileNameAvoidsExistingNames() {
         XCTAssertEqual(Profile.nextName(existingNames: ["日常"]), "新建配置档")
         XCTAssertEqual(

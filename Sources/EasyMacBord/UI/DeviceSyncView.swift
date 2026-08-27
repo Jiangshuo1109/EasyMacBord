@@ -9,12 +9,8 @@ struct DeviceSyncView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(alignment: .firstTextBaseline) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("设备与同步")
-                            .font(.title2.weight(.semibold))
-                        Text("仅展示应用已确认的设备信息")
-                            .foregroundStyle(.secondary)
-                    }
+                    Text("仅展示应用已确认的设备信息")
+                        .foregroundStyle(.secondary)
                     Spacer()
                     Button("同步当前配置", systemImage: "arrow.triangle.2.circlepath") {
                         model.beginSync()

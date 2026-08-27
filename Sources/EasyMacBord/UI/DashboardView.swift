@@ -11,12 +11,8 @@ struct DashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(alignment: .firstTextBaseline, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("状态总览")
-                            .font(.title2.weight(.semibold))
-                        Text(model.statusMessage)
-                            .foregroundStyle(.secondary)
-                    }
+                    Text(model.statusMessage)
+                        .foregroundStyle(.secondary)
                     Spacer()
                     Button("同步当前配置", systemImage: "arrow.triangle.2.circlepath") {
                         model.beginSync()
@@ -190,6 +186,7 @@ struct DashboardView: View {
 
     private var permissionTitle: String {
         let states = PermissionKind.allCases.map { model.permissions.state(for: $0) }
+        if states.contains(.actionFailed) { return "有调用失败项" }
         return states.contains(.required) ? "有待授权项目" : "状态已检查"
     }
 

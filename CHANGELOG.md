@@ -6,18 +6,20 @@
 
 ### 已实现（待合并）
 
+- T04 增加 Dock/菜单栏统一的主窗口恢复、独立动作库、输入预设、组合键录制、宏键盘映射、设置/关于和按实际能力整理的权限页。
 - T03 为动作库补充“从本机应用登记”：只读扫描常规应用程序目录，用户选择后才生成本地应用映射。
 - T03 增加可登记的直接工具：系统截图与录屏界面、锁定屏幕、仅防止闲置显示器休眠、用户选图壁纸、默认输出音量、隐藏前台应用和 Apple Music 基础控制。
 - 深色模式、屏保、键盘清洁、隐藏桌面文件/Dock、分屏、显示器亮度和键盘亮度以用户快捷指令模板接入，不新增私有系统实现。
 
 ### 已验证
 
-- Xcode 27.0 beta 6 下 `swift test --jobs 4` 通过，41/41；`swift build --configuration release --arch arm64` 通过。
-- `scripts/package-app.sh 0.1.0-beta.1` 通过，DMG 为 thin `arm64`、`Signature=adhoc`、`TeamIdentifier=not set`，SHA-256 为 `77fa9386c06bd83bbe3385f2a2700f48336a1ef2eabd409dc150d34e16dea3ef`。
+- Xcode 27.0 beta 6 下 `swift test --jobs 4` 通过，65/65；`swift build --configuration release --arch arm64` 通过。
+- `scripts/package-app.sh 0.1.0-beta.1` 通过；最新 DMG 为 `Signature=adhoc`、`TeamIdentifier=not set`。
 
 ### 尚未验证
 
-- T03 尚未完成新包的人工界面验收、M-01 至 M-08 本机工具验收或任何设备真机矩阵；本节不构成已发布功能记录。
+- 发布包已查看默认 `1280 x 800` 状态总览、动作库、宏键盘、设置和关于；仅保留总览截图，不构成两种目标尺寸或 UI-01 至 UI-06 的完整验收。
+- `1120 x 720`、Dock 重新打开、M-01 至 M-08 本机工具验收和任何设备真机矩阵仍未执行；本节不构成已发布功能记录。
 
 ## [0.1.0-beta.1] - 内部测试候选
 

@@ -30,6 +30,8 @@ cp "$ICON_FILE" "$APP_DIR/Contents/Resources/EasyMacBord.icns"
 cp -R "$RESOURCE_BUNDLE" "$APP_DIR/Contents/Resources/"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP_DIR/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$APP_DIR/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :EasyMacBordBuildArchitecture string arm64" "$APP_DIR/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :EasyMacBordSigningSummary string 内部 ad-hoc 签名（未公证，无开发团队标识）" "$APP_DIR/Contents/Info.plist"
 
 codesign --force --sign - "$APP_DIR"
 codesign --verify --strict --verbose=2 "$APP_DIR"

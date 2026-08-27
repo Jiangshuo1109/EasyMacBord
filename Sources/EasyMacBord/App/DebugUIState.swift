@@ -20,4 +20,31 @@ enum DebugUIState: String, CaseIterable, Equatable {
         self.init(rawValue: arguments[flagIndex + 1])
     }
 }
+
+struct DebugWindowSize: Equatable {
+    let width: CGFloat
+    let height: CGFloat
+
+    init(width: CGFloat, height: CGFloat) {
+        self.width = width
+        self.height = height
+    }
+
+    init?(arguments: [String]) {
+        guard let flagIndex = arguments.firstIndex(of: "--window-size"),
+              arguments.indices.contains(flagIndex + 1) else {
+            return nil
+        }
+        let parts = arguments[flagIndex + 1].split(separator: "x", maxSplits: 1)
+        guard parts.count == 2,
+              let width = Double(parts[0]),
+              let height = Double(parts[1]),
+              width > 0,
+              height > 0 else {
+            return nil
+        }
+        self.width = width
+        self.height = height
+    }
+}
 #endif

@@ -23,6 +23,12 @@ struct HostActionTarget: Codable, Equatable, Identifiable {
     }
 }
 
+extension HostActionTarget {
+    var isAppleMusicAction: Bool {
+        kind == .system && ["musicPlayPause", "musicPrevious", "musicNext"].contains(payload)
+    }
+}
+
 actor HostActionRegistry {
     private var targets: [UUID: HostActionTarget]
 

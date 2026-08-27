@@ -12,6 +12,7 @@ final class AppModel: ObservableObject {
     @Published var recentRecords: [ExecutionRecord] = []
     @Published var statusMessage = "正在加载本地配置"
     @Published var hostActions: [HostActionTarget] = []
+    @Published private(set) var inputPresets: [InputPreset] = []
     @Published private(set) var installedApplications: [InstalledApplication] = []
     @Published private(set) var isApplicationCatalogLoading = false
     @Published private(set) var isLocalStateReady = false
@@ -24,12 +25,15 @@ final class AppModel: ObservableObject {
     private var syncTimeoutTask: Task<Void, Never>?
     private var profileSaveTask: Task<Void, Never>?
     private var hostActionSaveTask: Task<Void, Never>?
+    private var inputPresetSaveTask: Task<Void, Never>?
     private var profileSaveRevision: UInt64 = 0
     private var hostActionSaveRevision: UInt64 = 0
+    private var inputPresetSaveRevision: UInt64 = 0
     private var syncHistorySaveRevision: UInt64 = 0
     private let deviceSession: DeviceSession
     private let profileStore = ProfileStore()
     private let hostActionStore = HostActionStore()
+    private let inputPresetStore = InputPresetStore()
     private let syncHistoryStore = SyncHistoryStore()
     private let hostActionRegistry = HostActionRegistry()
     private let actionExecutor = ActionExecutor()
@@ -74,6 +78,40 @@ final class AppModel: ObservableObject {
         profiles[index].bindings[control] = binding
         profiles[index].updatedAt = .now
         persistProfiles()
+    }
+
+    func applyInputPreset(_ preset: InputPreset, to control: ControlID) {
+        guard requireLocalStateReady() else { return }
+        setBinding(preset.makeBinding(), for: control)
+        statusMessage = "已应用预设：\(preset.title)"
+    }
+
+    @discardableResult
+    func saveInputPreset(id: UUID? = nil, kind: InputPreset.Kind, title: String, value: String) -> InputPreset? {
+        guard requireLocalStateReady() else { return nil }
+        guard !value.isEmpty else {
+            statusMessage = kind == .fixedText ? "请输入固定文本" : "请录制组合键"
+            return nil
+        }
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedTitle = trimmedTitle.isEmpty ? defaultPresetTitle(kind: kind, value: value) : trimmedTitle
+        let preset = InputPreset(id: id ?? UUID(), kind: kind, title: resolvedTitle, value: value)
+        if let index = inputPresets.firstIndex(where: { $0.id == preset.id }) {
+            inputPresets[index] = preset
+        } else {
+            inputPresets.append(preset)
+        }
+        inputPresets.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        persistInputPresets()
+        statusMessage = "已保存预设：\(preset.title)"
+        return preset
+    }
+
+    func removeInputPreset(_ id: UUID) {
+        guard requireLocalStateReady() else { return }
+        inputPresets.removeAll { $0.id == id }
+        persistInputPresets()
+        statusMessage = "已移除预设"
     }
 
     func addProfile() {
@@ -286,6 +324,12 @@ final class AppModel: ObservableObject {
         }
 
         do {
+            inputPresets = try await inputPresetStore.load()
+        } catch {
+            statusMessage = "动作预设无法读取，请重新登记"
+        }
+
+        do {
             syncHistory = try await syncHistoryStore.load()
         } catch {
             statusMessage = "同步记录无法读取"
@@ -324,6 +368,24 @@ final class AppModel: ObservableObject {
                 try await store.save(currentHistory, revision: revision)
             } catch {
                 statusMessage = "同步记录保存失败"
+            }
+        }
+    }
+
+    private func persistInputPresets() {
+        let presets = inputPresets
+        let store = inputPresetStore
+        inputPresetSaveTask?.cancel()
+        inputPresetSaveRevision &+= 1
+        let revision = inputPresetSaveRevision
+        inputPresetSaveTask = Task {
+            guard !Task.isCancelled else { return }
+            do {
+                try await store.save(presets, revision: revision)
+            } catch {
+                if !Task.isCancelled {
+                    statusMessage = "动作预设保存失败"
+                }
             }
         }
     }
@@ -387,6 +449,14 @@ final class AppModel: ObservableObject {
 
     private func execute(_ target: HostActionTarget, source: ExecutionRecord.Source) async {
         let result = await actionExecutor.execute(target)
+        if target.kind == .shortcut || target.isAppleMusicAction {
+            switch result {
+            case .succeeded:
+                permissions.recordAutomationSuccess()
+            case .failed:
+                permissions.recordAutomationFailure()
+            }
+        }
         switch result {
         case .succeeded:
             appendRecord(title: target.title, result: .success, source: source)
@@ -430,6 +500,16 @@ final class AppModel: ObservableObject {
             self.statusMessage = "设备未确认保存"
         }
     }
+
+    private func defaultPresetTitle(kind: InputPreset.Kind, value: String) -> String {
+        switch kind {
+        case .fixedText:
+            let preview = String(value.prefix(20))
+            return preview.isEmpty ? "固定文本" : preview
+        case .keyChord:
+            return value
+        }
+    }
 }
 
 #if DEBUG
@@ -446,12 +526,12 @@ extension AppModel {
 
         profileSaveState = .saved
         hostActions = []
+        inputPresets = []
         recentRecords = []
         syncHistory = SyncHistory()
         deviceDetails = DeviceDetails()
         permissions.applyDebugStates([
             .accessibility: .required,
-            .screenRecording: .required,
             .automation: .notChecked
         ])
 

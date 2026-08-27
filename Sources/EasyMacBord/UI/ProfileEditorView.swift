@@ -1,77 +1,54 @@
+import AppKit
 import SwiftUI
 
 struct ProfileEditorView: View {
     @ObservedObject var model: AppModel
     @State private var selectedControl: ControlID = .key1
 
-    private let accent = Color(red: 0.07, green: 0.42, blue: 0.38)
-    private let keyColumns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 4)
-
     var body: some View {
         HStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("配置档")
-                            .font(.title2.weight(.semibold))
+                    HStack(alignment: .center, spacing: 10) {
                         Picker("当前配置档", selection: $model.selectedProfileID) {
                             ForEach(model.profiles) { profile in
-                                Text(profile.name)
-                                    .tag(profile.id)
+                                Text(profile.name).tag(profile.id)
                             }
                         }
                         .labelsHidden()
                         .pickerStyle(.menu)
-                        .frame(width: 180)
+                        .frame(width: 220)
                         .help(model.selectedProfile.name)
-                        Button(action: model.addProfile) {
+
+                        Button {
+                            model.addProfile()
+                        } label: {
                             Image(systemName: "plus")
                         }
                         .buttonStyle(.bordered)
                         .help("新建配置档")
                         .accessibilityLabel("新建配置档")
+
                         Spacer()
+
                         Button("同步当前配置", systemImage: "arrow.triangle.2.circlepath") {
                             model.beginSync()
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(accent)
                         .disabled(!canSync)
                     }
 
                     Text("本地保存不等于设备已确认保存")
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
 
-                    Text("按键映射")
-                        .font(.headline)
-
-                    LazyVGrid(columns: keyColumns, spacing: 10) {
-                        ForEach(ControlID.keys) { control in
-                            MappingTile(
-                                control: control,
-                                binding: model.selectedProfile.binding(for: control),
-                                isSelected: control == selectedControl
-                            ) {
-                                selectedControl = control
-                            }
-                        }
-                    }
-
-                    Divider().padding(.vertical, 2)
-
-                    Text("单旋钮操作")
-                        .font(.headline)
-                    HStack(spacing: 10) {
-                        ForEach([ControlID.encoderLeft, .encoderPress, .encoderRight]) { control in
-                            MappingTile(
-                                control: control,
-                                binding: model.selectedProfile.binding(for: control),
-                                isSelected: control == selectedControl
-                            ) {
-                                selectedControl = control
-                            }
-                        }
-                    }
+                    MacroPadSurface(
+                        profile: model.selectedProfile,
+                        hostActions: model.hostActions,
+                        selectedControl: selectedControl,
+                        select: { selectedControl = $0 }
+                    )
+                    .frame(maxWidth: 760)
 
                     HStack(spacing: 6) {
                         Image(systemName: saveSymbol)
@@ -80,7 +57,6 @@ struct ProfileEditorView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.top, 2)
                 }
                 .padding(24)
             }
@@ -118,35 +94,222 @@ struct ProfileEditorView: View {
     }
 }
 
-private struct MappingTile: View {
+private struct MacroPadSurface: View {
+    let profile: Profile
+    let hostActions: [HostActionTarget]
+    let selectedControl: ControlID
+    let select: (ControlID) -> Void
+
+    private let keyColumns = Array(repeating: GridItem(.flexible(minimum: 86, maximum: 132), spacing: 10), count: 4)
+
+    var body: some View {
+        HStack(spacing: 22) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("8 键宏键盘")
+                    .font(.headline)
+
+                LazyVGrid(columns: keyColumns, spacing: 10) {
+                    ForEach(ControlID.keys) { control in
+                        MacroKeyCap(
+                            control: control,
+                            binding: profile.binding(for: control),
+                            target: hostAction(for: profile.binding(for: control)),
+                            isSelected: control == selectedControl,
+                            select: { select(control) }
+                        )
+                    }
+                }
+            }
+
+            Divider()
+
+            RotaryControl(
+                profile: profile,
+                hostActions: hostActions,
+                selectedControl: selectedControl,
+                select: select
+            )
+            .frame(width: 178)
+        }
+        .padding(18)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+        }
+    }
+
+    private func hostAction(for binding: ActionBinding) -> HostActionTarget? {
+        guard binding.kind == .hostAction,
+              let id = UUID(uuidString: binding.value) else { return nil }
+        return hostActions.first { $0.id == id }
+    }
+}
+
+private struct MacroKeyCap: View {
     let control: ControlID
     let binding: ActionBinding
+    let target: HostActionTarget?
     let isSelected: Bool
     let select: () -> Void
 
     var body: some View {
         Button(action: select) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(control.title)
-                    .font(.subheadline.weight(.semibold))
+            VStack(alignment: .leading, spacing: 7) {
+                HStack {
+                    Text(control.rawValue.replacingOccurrences(of: "KEY", with: "K"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                    actionIcon
+                }
+
+                Spacer(minLength: 0)
+
                 Text(binding.title)
-                    .lineLimit(1)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
                     .foregroundStyle(binding.kind == .disabled ? .secondary : .primary)
                     .help(binding.title)
+
                 Text(binding.kind.title)
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            .frame(maxWidth: .infinity, minHeight: 84, alignment: .leading)
             .padding(12)
-            .background(isSelected ? Color.accentColor.opacity(0.14) : Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 8))
+            .frame(maxWidth: .infinity, minHeight: 116, maxHeight: 116, alignment: .topLeading)
+            .background(keyBackground, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.accentColor : Color.primary.opacity(0.12), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(isSelected ? Color.accentColor : Color.primary.opacity(0.12), lineWidth: isSelected ? 2 : 1)
             }
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(control.title)，\(binding.title)，\(binding.kind.title)")
+    }
+
+    @ViewBuilder
+    private var actionIcon: some View {
+        if let target, let icon = HostActionPresentation.applicationIcon(for: target) {
+            Image(nsImage: icon)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 18, height: 18)
+                .accessibilityHidden(true)
+        } else {
+            Image(systemName: target.map(HostActionPresentation.symbol(for:)) ?? bindingSymbol)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 18, height: 18)
+                .accessibilityHidden(true)
+        }
+    }
+
+    private var keyBackground: Color {
+        isSelected ? Color.accentColor.opacity(0.13) : Color(nsColor: .controlBackgroundColor).opacity(0.72)
+    }
+
+    private var bindingSymbol: String {
+        switch binding.kind {
+        case .hostAction: "bolt"
+        case .fixedText: "text.cursor"
+        case .keyChord: "command"
+        case .disabled: "minus"
+        }
+    }
+}
+
+private struct RotaryControl: View {
+    let profile: Profile
+    let hostActions: [HostActionTarget]
+    let selectedControl: ControlID
+    let select: (ControlID) -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text("旋钮")
+                .font(.headline)
+
+            Button {
+                select(.encoderPress)
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(selectedControl == .encoderPress ? Color.accentColor.opacity(0.18) : Color.primary.opacity(0.09))
+                    Circle()
+                        .stroke(selectedControl == .encoderPress ? Color.accentColor : Color.primary.opacity(0.16), lineWidth: selectedControl == .encoderPress ? 2 : 1)
+                    Image(systemName: "dial.medium")
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(width: 76, height: 76)
+            }
+            .buttonStyle(.plain)
+            .help("旋钮按下")
+
+            VStack(spacing: 6) {
+                ForEach([ControlID.encoderLeft, .encoderPress, .encoderRight]) { control in
+                    RotaryActionRow(
+                        control: control,
+                        binding: profile.binding(for: control),
+                        target: hostAction(for: profile.binding(for: control)),
+                        isSelected: control == selectedControl,
+                        select: { select(control) }
+                    )
+                }
+            }
+        }
+    }
+
+    private func hostAction(for binding: ActionBinding) -> HostActionTarget? {
+        guard binding.kind == .hostAction,
+              let id = UUID(uuidString: binding.value) else { return nil }
+        return hostActions.first { $0.id == id }
+    }
+}
+
+private struct RotaryActionRow: View {
+    let control: ControlID
+    let binding: ActionBinding
+    let target: HostActionTarget?
+    let isSelected: Bool
+    let select: () -> Void
+
+    var body: some View {
+        Button(action: select) {
+            HStack(spacing: 7) {
+                Image(systemName: controlSymbol)
+                    .font(.caption)
+                    .frame(width: 14)
+                Text(binding.title)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .help(binding.title)
+                Spacer(minLength: 0)
+                if let target, let icon = HostActionPresentation.applicationIcon(for: target) {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 14, height: 14)
+                }
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 30)
+            .background(isSelected ? Color.accentColor.opacity(0.13) : Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(control.title)，\(binding.title)")
+    }
+
+    private var controlSymbol: String {
+        switch control {
+        case .encoderLeft: "arrow.counterclockwise"
+        case .encoderPress: "circle.fill"
+        case .encoderRight: "arrow.clockwise"
+        default: "circle"
+        }
     }
 }
 
@@ -154,8 +317,9 @@ private struct BindingInspector: View {
     @ObservedObject var model: AppModel
     let control: ControlID
 
-    @State private var showingActionManager = false
-    @State private var showingLockWarning = false
+    @State private var isRecordingChord = false
+    @State private var recordingMessage: String?
+    @State private var pendingLockTestID: UUID?
 
     private var binding: ActionBinding {
         model.selectedProfile.binding(for: control)
@@ -166,46 +330,56 @@ private struct BindingInspector: View {
         return model.hostActions.first { $0.id == id }
     }
 
+    private var matchingPresets: [InputPreset] {
+        let kind: InputPreset.Kind = binding.kind == .fixedText ? .fixedText : .keyChord
+        return model.inputPresets.filter { $0.kind == kind }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("\(control.title) 设置")
                 .font(.headline)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("动作类型")
-                    .font(.subheadline.weight(.medium))
-                Picker("动作类型", selection: kindBinding) {
-                    ForEach(BindingKind.allCases) { kind in
-                        Text(kind.title).tag(kind)
-                    }
+            Picker("动作类型", selection: kindBinding) {
+                ForEach(BindingKind.allCases) { kind in
+                    Text(kind.title).tag(kind)
                 }
-                .labelsHidden()
-                .pickerStyle(.segmented)
             }
+            .labelsHidden()
+            .pickerStyle(.segmented)
 
-            if binding.kind == .hostAction {
+            switch binding.kind {
+            case .hostAction:
                 hostActionSettings
-            } else {
-                standardBindingSettings
+            case .fixedText, .keyChord:
+                presetSettings
+            case .disabled:
+                Text("此控制件不会发送动作。")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
 
             Spacer(minLength: 0)
         }
         .padding(20)
         .background(.thinMaterial)
-        .sheet(isPresented: $showingActionManager) {
-            NavigationStack {
-                HostActionLibraryView(model: model)
-            }
-            .frame(minWidth: 520, minHeight: 460)
-        }
-        .confirmationDialog("确认测试锁定屏幕", isPresented: $showingLockWarning, titleVisibility: .visible) {
-            Button("锁定屏幕") {
-                if let id = selectedTarget?.id {
-                    model.testHostAction(id)
+        .confirmationDialog(
+            "确认测试锁定屏幕",
+            isPresented: Binding(
+                get: { pendingLockTestID != nil },
+                set: { if !$0 { pendingLockTestID = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("锁定屏幕", role: .destructive) {
+                if let pendingLockTestID {
+                    model.testHostAction(pendingLockTestID)
                 }
+                pendingLockTestID = nil
             }
-            Button("取消", role: .cancel) {}
+            Button("取消", role: .cancel) {
+                pendingLockTestID = nil
+            }
         } message: {
             Text("此操作会立即锁定当前 Mac。")
         }
@@ -223,55 +397,87 @@ private struct BindingInspector: View {
                 }
             }
 
-            Button("管理本机动作", systemImage: "slider.horizontal.3") {
-                showingActionManager = true
-            }
-            .buttonStyle(.bordered)
+            Text("在左侧“动作库”登记、测试和维护本机动作。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             if let selectedTarget {
                 Button("测试动作", systemImage: "play.circle") {
-                    if selectedTarget.kind == .system, selectedTarget.payload == "lockScreen" {
-                        showingLockWarning = true
-                    } else {
-                        model.testHostAction(selectedTarget.id)
-                    }
+                    test(selectedTarget)
                 }
                 .buttonStyle(.bordered)
-            } else {
-                Text("登记并选择本机动作后可测试。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
+        }
+    }
+
+    private func test(_ target: HostActionTarget) {
+        if target.kind == .system, target.payload == SystemTool.lockScreen.rawValue {
+            pendingLockTestID = target.id
+        } else {
+            model.testHostAction(target.id)
         }
     }
 
     @ViewBuilder
-    private var standardBindingSettings: some View {
+    private var presetSettings: some View {
         VStack(alignment: .leading, spacing: 12) {
-            TextField(valueLabel, text: valueBinding)
-                .disabled(binding.kind == .disabled)
-            TextField("显示名称", text: titleBinding)
-                .disabled(binding.kind == .disabled)
-            Text(testHint)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-    }
+            Text(binding.kind == .fixedText ? "固定文本预设" : "组合键预设")
+                .font(.subheadline.weight(.medium))
 
-    private var valueLabel: String {
-        switch binding.kind {
-        case .hostAction: "本机动作"
-        case .fixedText: "文本内容"
-        case .keyChord: "组合键，例如 Meta+Space"
-        case .disabled: "无内容"
-        }
-    }
+            if matchingPresets.isEmpty {
+                Text("请先在“动作库”创建可复用预设。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(matchingPresets) { preset in
+                    Button {
+                        model.applyInputPreset(preset, to: control)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: preset.kind == .fixedText ? "text.cursor" : "command")
+                                .foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(preset.title).lineLimit(1)
+                                Text(preset.value).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                            Spacer(minLength: 0)
+                            if preset.value == binding.value {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.vertical, 3)
+                }
+            }
 
-    private var testHint: String {
-        switch binding.kind {
-        case .fixedText, .keyChord: "该动作由设备发送，请通过实体控制件验证。"
-        case .disabled: "此控制件不会发送动作。"
-        case .hostAction: ""
+            if binding.kind == .keyChord {
+                Button(isRecordingChord ? "正在录制…" : "录制并保存为预设", systemImage: "record.circle") {
+                    recordingMessage = nil
+                    isRecordingChord = true
+                }
+                .buttonStyle(.bordered)
+                .disabled(isRecordingChord)
+
+                KeyChordRecorder(isRecording: $isRecordingChord) { result in
+                    switch result {
+                    case .success(let chord):
+                        if let preset = model.saveInputPreset(kind: .keyChord, title: chord, value: chord) {
+                            model.applyInputPreset(preset, to: control)
+                        }
+                    case .failure(let error):
+                        recordingMessage = error.message
+                    }
+                }
+                .frame(width: 1, height: 1)
+
+                if let recordingMessage {
+                    Text(recordingMessage)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
         }
     }
 
@@ -295,21 +501,9 @@ private struct BindingInspector: View {
             set: { value in
                 var next = binding
                 next.value = value
-                if binding.kind == .hostAction,
-                   let target = model.hostActions.first(where: { $0.id.uuidString.lowercased() == value }) {
+                if let target = model.hostActions.first(where: { $0.id.uuidString.lowercased() == value }) {
                     next.title = target.title
                 }
-                model.setBinding(next, for: control)
-            }
-        )
-    }
-
-    private var titleBinding: Binding<String> {
-        Binding(
-            get: { binding.title },
-            set: { value in
-                var next = binding
-                next.title = value
                 model.setBinding(next, for: control)
             }
         )

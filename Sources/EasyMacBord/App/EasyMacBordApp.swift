@@ -7,6 +7,8 @@ enum AppWindowID {
 @main
 struct EasyMacBordApp: App {
     @StateObject private var model: AppModel
+    @StateObject private var preferences: AppPreferences
+    @NSApplicationDelegateAdaptor(EasyMacBordApplicationDelegate.self) private var applicationDelegate
 
     init() {
 #if DEBUG
@@ -19,10 +21,11 @@ struct EasyMacBordApp: App {
 #else
         _model = StateObject(wrappedValue: AppModel())
 #endif
+        _preferences = StateObject(wrappedValue: AppPreferences())
     }
 
     var body: some Scene {
-        MenuBarExtra {
+        MenuBarExtra(isInserted: preferences.menuBarVisibility) {
             MenuPanel(model: model)
                 .frame(width: 300)
         } label: {
@@ -32,7 +35,9 @@ struct EasyMacBordApp: App {
         .menuBarExtraStyle(.window)
 
         WindowGroup("EasyMacBord", id: AppWindowID.main) {
-            RootView(model: model)
+            MainWindowHost {
+                RootView(model: model, preferences: preferences)
+            }
                 .frame(minWidth: 1120, minHeight: 720)
         }
         .defaultSize(width: 1280, height: 800)
