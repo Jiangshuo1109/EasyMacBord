@@ -27,4 +27,42 @@ final class FirmwareProfileSerializerTests: XCTestCase {
         profile.bindings[.key1] = ActionBinding(kind: .hostAction, value: "123E4567-e89b-12d3-a456-426614174000", title: "错误 UUID")
         XCTAssertThrowsError(try FirmwareProfileSerializer.makeConfiguration(from: profile))
     }
+
+    func testSerializesSemanticActionsAsExactFirmwareStrings() throws {
+        var profile = Profile(name: "日常")
+        for (control, action) in zip(ControlID.keys, SemanticAction.allCases) {
+            profile.bindings[control] = ActionBinding(kind: .semanticAction, value: action.rawValue, title: action.title)
+        }
+
+        let data = try FirmwareProfileSerializer.makeConfiguration(from: profile)
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let profiles = try XCTUnwrap(root["profiles"] as? [[String: Any]])
+        let keys = try XCTUnwrap(profiles.first?["keys"] as? [String: [String: Any]])
+        for (control, action) in zip(ControlID.keys, SemanticAction.allCases) {
+            XCTAssertEqual(keys[control.rawValue]?["press"] as? String, action.rawValue)
+        }
+    }
+
+    func testSemanticActionMetadataMatchesSupportedControls() {
+        let allControls = Set(ControlID.allCases)
+        for action in SemanticAction.allCases {
+            XCTAssertFalse(action.title.isEmpty)
+            XCTAssertFalse(action.symbolName.isEmpty)
+            XCTAssertEqual(action.allowedControls, allControls)
+        }
+    }
+
+    func testSemanticActionRecommendationsKeepVoiceOnKeys() {
+        XCTAssertEqual(SemanticAction.voicePTTHold.recommendedControls, Set(ControlID.keys))
+        XCTAssertTrue(SemanticAction.copy.recommendedControls.contains(.encoderPress))
+        XCTAssertFalse(SemanticAction.copy.recommendedControls.contains(.encoderLeft))
+    }
+
+    func testRejectsUnknownSemanticAction() {
+        var profile = Profile(name: "日常")
+        profile.bindings[.key1] = ActionBinding(kind: .semanticAction, value: "launch_rocket", title: "无效动作")
+        XCTAssertThrowsError(try FirmwareProfileSerializer.makeConfiguration(from: profile)) { error in
+            XCTAssertEqual(error as? FirmwareProfileSerializer.Error, .invalidSemanticAction)
+        }
+    }
 }

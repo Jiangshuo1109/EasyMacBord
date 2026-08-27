@@ -64,16 +64,24 @@ final class AppPreferences: ObservableObject {
     @Published private(set) var isMenuBarVisible: Bool
     @Published private(set) var loginItemStatus: LoginItemStatus
     @Published private(set) var loginItemMessage: String?
+    @Published private(set) var updateCheckState: AppUpdateCheckState = .idle
 
     private let defaults: UserDefaults
     private let loginItemController: any LoginItemControlling
+    private let releaseChecker: any GitHubReleaseChecking
+    private var updateCheckTask: Task<Void, Never>?
+    let buildInfo: AppBuildInfo
 
     init(
         defaults: UserDefaults = .standard,
-        loginItemController: any LoginItemControlling = SystemLoginItemController()
+        loginItemController: any LoginItemControlling = SystemLoginItemController(),
+        buildInfo: AppBuildInfo = AppBuildInfo(),
+        releaseChecker: any GitHubReleaseChecking = GitHubReleaseChecker()
     ) {
         self.defaults = defaults
         self.loginItemController = loginItemController
+        self.buildInfo = buildInfo
+        self.releaseChecker = releaseChecker
         if defaults.object(forKey: Self.menuBarVisibilityKey) == nil {
             isMenuBarVisible = true
         } else {
@@ -111,6 +119,48 @@ final class AppPreferences: ObservableObject {
         } catch {
             loginItemStatus = loginItemController.status
             loginItemMessage = "无法更新登录项，请在系统设置中检查。"
+        }
+    }
+
+    func checkForUpdates() {
+        guard updateCheckTask == nil else { return }
+        let checkedAt = Date.now
+        guard let currentVersion = SemanticVersion(buildInfo.version) else {
+            updateCheckState = .failed(message: "当前构建版本无法检查更新。", checkedAt: checkedAt)
+            return
+        }
+
+        updateCheckState = .checking
+        let checker = releaseChecker
+        updateCheckTask = Task { [weak self] in
+            let nextState: AppUpdateCheckState
+            do {
+                nextState = .completed(
+                    try await checker.check(currentVersion: currentVersion),
+                    checkedAt: checkedAt
+                )
+            } catch {
+                nextState = .failed(message: Self.updateErrorMessage(for: error), checkedAt: checkedAt)
+            }
+            guard !Task.isCancelled else { return }
+            self?.updateCheckState = nextState
+            self?.updateCheckTask = nil
+        }
+    }
+
+    private static func updateErrorMessage(for error: Error) -> String {
+        guard let error = error as? GitHubReleaseCheckerError else {
+            return "检查更新时发生未知错误。"
+        }
+        switch error {
+        case .network:
+            return "无法连接 GitHub Releases，请检查网络后重试。"
+        case .rateLimited:
+            return "GitHub API 请求次数已达上限，请稍后重试。"
+        case .invalidResponse, .httpStatus:
+            return "GitHub Releases 暂时不可用，请稍后重试。"
+        case .invalidPayload:
+            return "GitHub Releases 返回的数据无法识别。"
         }
     }
 }

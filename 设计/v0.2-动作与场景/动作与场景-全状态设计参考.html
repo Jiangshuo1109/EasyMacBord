@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EasyMacBord - 动作与场景全状态设计参考</title>
+  <style>
+    :root { --ink:#202522; --subtle:#69736d; --line:#d4dad5; --canvas:#e8ece8; --surface:#f9faf8; --side:#e3e8e3; --device:#2b312f; --key:#3b4440; --accent:#2d7566; --accent-soft:#dcece4; --good:#34774b; --warn:#a96b25; --danger:#a94741; }
+    * { box-sizing:border-box; } body { min-width:1120px; margin:0; padding:30px; background:var(--canvas); color:var(--ink); font:13px -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",sans-serif; }
+    .page { width:1080px; margin:0 auto; } h1 { margin:0; font-size:25px; } .intro { margin:7px 0 0; color:var(--subtle); line-height:1.6; } .toc { display:flex; flex-wrap:wrap; gap:7px; margin:19px 0 31px; } .toc a { padding:7px 10px; border:1px solid #c5cec7; border-radius:6px; background:#f8faf8; color:#255d52; text-decoration:none; }
+    .state { margin-bottom:38px; } h2 { margin:0; font-size:18px; } .state>p { margin:7px 0 13px; color:var(--subtle); line-height:1.55; } .tag { display:inline-block; margin-bottom:7px; padding:3px 6px; border:1px solid #cdd4ce; border-radius:4px; color:#59655e; font-size:11px; }
+    .window { overflow:hidden; border:1px solid #bdc7c0; border-radius:9px; background:var(--surface); box-shadow:0 10px 28px rgba(34,43,38,.12); } .bar { display:flex; align-items:center; height:42px; padding:0 14px; border-bottom:1px solid var(--line); background:#f6f8f5; }.dots{display:flex;gap:6px}.dots i{width:10px;height:10px;border-radius:50%;background:#d3dad4}.bar strong{margin-left:12px}.bar small{margin-left:auto;color:var(--subtle)}
+    .layout { display:grid; grid-template-columns:174px minmax(0,1fr); min-height:286px; } .nav { padding:12px 8px; border-right:1px solid var(--line); background:var(--side); }.brand{padding:8px 10px 14px;border-bottom:1px solid #cfd6d0;font-weight:650}.brand small{display:block;margin-top:4px;color:var(--subtle);font-weight:400}.nav span{display:block;padding:8px 10px;border-radius:5px}.nav .on{background:var(--accent-soft);color:#15574d;font-weight:650}.nav .bottom{margin-top:26px;border-top:1px solid #cfd6d0;border-radius:0}.view{min-width:0;padding:18px}.head{display:flex;align-items:center;gap:10px;margin-bottom:15px}.head h3{margin:0;font-size:17px}.grow{flex:1}.btn{padding:7px 10px;border:1px solid #bdc8c1;border-radius:6px;background:#fff;color:#27312c;font:inherit}.btn.primary{border-color:#235f53;background:var(--accent);color:#fff;font-weight:650}.btn:disabled{border-color:#d7ddd8;background:#f1f3f0;color:#8a948e}
+    .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-radius:7px;overflow:hidden;background:#fff}.metric{min-height:75px;padding:11px;border-right:1px solid var(--line)}.metric:last-child{border:0}.metric small{display:block;color:var(--subtle)}.metric b{display:block;overflow:hidden;margin-top:12px;text-overflow:ellipsis;white-space:nowrap}.good{color:var(--good)!important}.warn{color:var(--warn)!important}.danger{color:var(--danger)!important}.muted{color:var(--subtle)!important}
+    .device{display:grid;grid-template-columns:minmax(0,1fr) 115px;gap:12px;margin-top:14px;padding:23px 18px 18px;border:1px solid #161b19;border-radius:7px;background:var(--device)}.keys{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.key{min-width:0;height:70px;padding:9px;border:1px solid #59635e;border-bottom:3px solid #18201d;border-radius:6px;background:var(--key);color:#eff3ef}.key.on{border-color:#82bdaa;box-shadow:0 0 0 2px #1d5d51}.key b{display:block;color:#b9c7c0;font-size:10px}.key span{display:block;overflow:hidden;margin-top:12px;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:600}.knob{display:grid;place-items:center;align-content:center;gap:8px;border-left:1px solid #4c5751;color:#dce6e0}.disc{width:66px;height:66px;border:8px solid #5c6760;border-radius:50%;background:#222926;box-shadow:inset 0 0 0 2px #151a18}.disc:before{display:block;width:3px;height:16px;margin:5px auto;background:#d2ddd7;content:""}.knob small{color:#b9c7c0;font-size:10px}
+    .rows{margin-top:14px;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:#fff}.row{display:flex;align-items:center;gap:10px;min-height:39px;padding:8px 10px;border-bottom:1px solid var(--line)}.row:last-child{border:0}.row b{margin-left:auto;font-weight:600}.notice{margin-top:13px;padding:11px 12px;border:1px solid #d4dad5;border-radius:6px;background:#f4f6f3;color:#536059;line-height:1.5}.notice.warn{border-color:#ebcea8;background:#fff6eb;color:#87511d}.notice.danger{border-color:#e4bcb7;background:#fdf0ef;color:#8f3833}.empty{display:grid;min-height:134px;place-items:center;border:1px dashed #c1cbc4;border-radius:7px;color:var(--subtle);text-align:center;line-height:1.6}.spinner{width:18px;height:18px;margin:0 auto 9px;border:2px solid #c7d1cb;border-top-color:var(--accent);border-radius:50%;animation:spin .9s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+    .rule-grid{display:grid;grid-template-columns:190px minmax(0,1fr);gap:13px}.rule-list{border:1px solid var(--line);border-radius:7px;background:#fff}.rule{display:flex;gap:9px;align-items:center;padding:9px;border-bottom:1px solid #e1e5e1}.rule:last-child{border:0}.rule.on{background:#edf6f1}.rule i{display:grid;width:24px;height:24px;place-items:center;border:1px solid #cbd4cd;border-radius:5px;color:#2b5f54;font-style:normal}.rule b,.rule small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rule small{margin-top:3px;color:var(--subtle);font-size:11px}.rule span{margin-left:auto;color:var(--good)}
+    .modal-scrim{display:grid;place-items:center;min-height:286px;background:rgba(38,45,41,.36)}.modal{width:360px;padding:18px;border:1px solid #bac4bd;border-radius:8px;background:#fff;box-shadow:0 14px 32px rgba(24,31,28,.22)}.modal h3{margin:0;font-size:16px}.modal p{margin:9px 0 18px;color:var(--subtle);line-height:1.55}.modal .actions{display:flex;justify-content:flex-end;gap:8px}.btn.trash{border-color:#b45149;background:#a94741;color:#fff}.toast{position:relative;display:flex;align-items:center;gap:8px;max-width:420px;margin-top:13px;padding:9px 11px;border:1px solid #b9d7c8;border-radius:6px;background:#f0f8f3;color:#245d3c}.toast.error{border-color:#e1b9b4;background:#fdf0ef;color:#8d3933}.badge{display:inline-block;padding:2px 5px;border:1px solid #d0d7d1;border-radius:4px;color:#5e6962;font-size:10px}
+    table{width:100%;border-collapse:collapse;background:#fff;font-size:12px}th,td{padding:10px;vertical-align:top;border:1px solid var(--line);text-align:left;line-height:1.5}th{background:#eef2ee;font-weight:650}td:first-child{white-space:nowrap}
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header><h1>动作与场景全状态设计参考</h1><p class="intro">v0.2 T05 · 配置档自动切换、动作库与设备状态。以下数据为界面状态样例，不能用于证明真实设备能力、保存确认或本机动作执行。</p></header>
+    <nav class="toc"><a href="#normal">正常态</a><a href="#reading">状态读取中</a><a href="#status-error">状态校验失败</a><a href="#capability">能力未确认</a><a href="#empty">无规则</a><a href="#search">筛选无结果</a><a href="#debounce">自动同步</a><a href="#trash">废纸篓确认</a><a href="#update">手动更新</a><a href="#rules">交互规则</a></nav>
+
+    <section class="state" id="normal">
+      <span class="tag">正常态 · 已读取并校验状态</span><h2>配置档由前台应用规则切换</h2><p>用户先看到当前配置档、设备台面和状态，再管理匹配应用。设备语义动作只在已校验能力允许时映射，且不经过 `host_action:&lt;uuid&gt;`。</p>
+      <div class="window"><div class="bar"><span class="dots"><i></i><i></i><i></i></span><strong>EasyMacBord</strong><small>配置档</small></div><div class="layout"><aside class="nav"><div class="brand">EasyMacBord<small>EasyInput AI · USB 已连接</small></div><span>状态总览</span><span class="on">配置档</span><span>动作库</span><span>设备与同步</span><span>权限</span><span class="bottom">设置</span><span>关于</span></aside><section class="view"><div class="head"><div><h3>深度工作</h3><small class="muted">自动切换已开启 · 2 条匹配规则</small></div><span class="grow"></span><button class="btn">自动切换</button><button class="btn primary">立即同步</button></div><div class="metrics"><div class="metric"><small>设备状态</small><b class="good">已校验</b></div><div class="metric"><small>语义动作</small><b class="good">可映射</b></div><div class="metric"><small>PTT 热键</small><b class="good">已读取</b></div><div class="metric"><small>自动同步</small><b>空闲</b></div></div><div class="device"><div class="keys"><div class="key on"><b>KEY 1</b><span>开始专注</span></div><div class="key"><b>KEY 2</b><span>记录灵感</span></div><div class="key"><b>KEY 3</b><span>打开笔记</span></div><div class="key"><b>KEY 4</b><span>聚焦搜索</span></div><div class="key"><b>KEY 5</b><span>截屏与录屏</span></div><div class="key"><b>KEY 6</b><span>隐藏当前应用</span></div><div class="key"><b>KEY 7</b><span>未设置</span></div><div class="key"><b>KEY 8</b><span>未设置</span></div></div><div class="knob"><div class="disc"></div><b>旋钮</b><small>音量控制</small></div></div></section></div></div>
+    </section>
+
+    <section class="state" id="reading">
+      <span class="tag">加载态 · 读取设备状态</span><h2>状态读取不阻塞配置档编辑</h2><p>USB 状态读取进行时，配置档仍可编辑；依赖状态能力的控件保持禁用，直到收到符合当前 request ID 的完整回包。</p>
+      <div class="window"><div class="bar"><strong>EasyMacBord</strong></div><div class="layout"><aside class="nav"><div class="brand">EasyInput AI<small>USB 已连接</small></div><span class="on">设备与同步</span></aside><section class="view"><div class="head"><h3>设备与同步</h3><span class="grow"></span><button class="btn" disabled>正在读取状态</button><button class="btn primary">同步当前配置</button></div><div class="metrics"><div class="metric"><small>设备状态</small><b class="warn">正在读取</b></div><div class="metric"><small>语义动作</small><b class="muted">设备未确认</b></div><div class="metric"><small>PTT 热键</small><b class="muted">等待响应</b></div><div class="metric"><small>请求</small><b>进行中</b></div></div><div class="empty"><div><div class="spinner"></div>正在读取 EasyInput 状态<br><small>收到完整并校验的响应后更新设备信息</small></div></div></section></div></div>
+    </section>
+
+    <section class="state" id="status-error">
+      <span class="tag">错误态 · 状态回包校验失败</span><h2>保留上一次已校验状态，不接受半包或错包</h2><p>分片序号、请求 ID、总长度或 CRC 任一不符时丢弃本次状态。错误不改写现有能力显示，也不影响同步确认记录。</p>
+      <div class="window"><div class="bar"><strong>EasyMacBord</strong></div><div class="layout"><aside class="nav"><div class="brand">EasyInput AI<small>USB 已连接</small></div><span class="on">设备与同步</span></aside><section class="view"><div class="head"><h3>设备与同步</h3><span class="grow"></span><button class="btn">再次读取</button></div><div class="notice danger"><b>设备状态未确认</b><br>本次响应的 CRC 与声明长度不一致。已保留上一次有效状态摘要，不会把本次数据用于能力判断。</div><div class="rows"><div class="row"><span>上次有效状态</span><b>今天 10:42</b></div><div class="row"><span>语义动作</span><b class="good">可映射（来自上次有效状态）</b></div><div class="row"><span>本次读取</span><b class="danger">已丢弃</b></div></div></section></div></div>
+      <div class="toast error">! 状态读取失败：响应校验未通过</div>
+    </section>
+
+    <section class="state" id="capability">
+      <span class="tag">部分可用 · 能力未确认</span><h2>配置档可编辑，设备动作不可映射</h2><p>设备没有返回 `semantic_actions: true`，或 PTT 字段未读取时，普通配置档和 Host Action 仍可用；设备语义动作显示“设备未确认”。灯光和音乐律动始终显示不可用。</p>
+      <div class="window"><div class="bar"><strong>EasyMacBord</strong></div><div class="layout"><aside class="nav"><div class="brand">EasyInput AI<small>状态已读取</small></div><span class="on">配置档</span></aside><section class="view"><div class="head"><h3>会议记录</h3><span class="grow"></span><button class="btn primary">同步当前配置</button></div><div class="metrics"><div class="metric"><small>设备状态</small><b class="good">已校验</b></div><div class="metric"><small>语义动作</small><b class="warn">设备未确认</b></div><div class="metric"><small>PTT 热键</small><b class="warn">未读取</b></div><div class="metric"><small>灯光/律动</small><b class="muted">不可用</b></div></div><div class="notice warn"><b>设备动作暂不可用</b><br>当前状态没有确认语义动作能力或 PTT 热键。仍可编辑和同步现有键位；灯光和音乐律动需要新增、冻结并真机验证的设备控制合同。</div><div class="rows"><div class="row"><span>KEY 1</span><b>开始会议记录</b></div><div class="row"><span>KEY 2</span><b>静音切换</b></div></div></section></div></div>
+    </section>
+
+    <section class="state" id="empty">
+      <span class="tag">空态 · 尚无自动切换规则</span><h2>不创建隐式规则或配置档</h2><p>配置档仍可在原页面编辑。用户明确选择一个已发现、带 Bundle ID 的应用后，才创建当前配置档的自动切换规则。</p>
+      <div class="window"><div class="bar"><strong>EasyMacBord</strong></div><div class="layout"><aside class="nav"><div class="brand">EasyInput AI<small>未连接</small></div><span class="on">配置档</span></aside><section class="view"><div class="head"><h3>深度工作</h3><span class="grow"></span><button class="btn primary">添加应用规则</button></div><div class="empty"><div><b>还没有匹配应用</b><br>选择一个已有本机应用，前台切换到该应用时将选中“深度工作”配置档。</div></div></section></div></div>
+    </section>
+
+    <section class="state" id="search">
+      <span class="tag">筛选无结果 · 动作库</span><h2>查询没有匹配项时保留筛选条件</h2><p>不以“新增一个同名动作”代替搜索结果。用户可清除筛选、切换类型或登记新的本机动作。</p>
+      <div class="window"><div class="bar"><strong>EasyMacBord</strong></div><div class="layout"><aside class="nav"><div class="brand">EasyMacBord<small>USB 已连接</small></div><span>配置档</span><span class="on">动作库</span><span>设备与同步</span></aside><section class="view"><div class="head"><h3>动作库</h3><span class="grow"></span><input value="演示灯光" aria-label="搜索动作" style="width:180px;padding:7px 9px;border:1px solid #bdc8c1;border-radius:6px;background:#fff"></div><div class="empty"><div><b>没有匹配的动作</b><br>可清除筛选，或登记已有应用、快捷指令、输入预设和系统工具。灯光控制需要另行确认设备合同。</div></div></section></div></div>
+    </section>
+
+    <section class="state" id="debounce">
+      <span class="tag">进行中 · 前台应用规则自动同步</span><h2>连续切换只同步最后一个匹配配置档</h2><p>前台应用命中规则后等待 750 ms；在等待期间再次命中其他规则时，以最后一次有效匹配为准。立即同步会取消等待，不允许自动同步与手动同步并发发送。</p>
+      <div class="window"><div class="bar"><strong>EasyMacBord</strong></div><div class="layout"><aside class="nav"><div class="brand">EasyMacBord<small>USB 已连接</small></div><span class="on">配置档</span><span>动作库</span></aside><section class="view"><div class="head"><h3>深度工作</h3><span class="grow"></span><button class="btn">取消等待</button><button class="btn primary">立即同步</button></div><div class="metrics"><div class="metric"><small>前台应用</small><b>写作工具已匹配</b></div><div class="metric"><small>自动同步</small><b class="warn">等待 0.75 秒</b></div><div class="metric"><small>写入通道</small><b class="good">USB</b></div><div class="metric"><small>保存确认</small><b class="muted">尚未发送</b></div></div><div class="notice"><b>等待同步</b><br>继续切换前台应用将重置等待时间。发送后仍须收到长度和 CRC 匹配的保存确认，才显示“已确认”。</div></section></div></div>
+      <div class="toast">✓ 已切换当前配置档，等待稳定后同步</div>
+    </section>
+
+    <section class="state" id="trash">
+      <span class="tag">破坏性操作 · 废纸篓确认</span><h2>清空系统废纸篓必须在本机确认</h2><p>这是系统级操作，不是删除 EasyMacBord 的本地登记。应用在确认前不会调用 Finder；取消不会删除文件，也不影响设备已经保存的配置。</p>
+      <div class="window"><div class="bar"><strong>EasyMacBord</strong></div><div class="modal-scrim"><section class="modal"><h3>确认清空废纸篓？</h3><p>这会请求 Finder 清空本机废纸篓，文件可能无法恢复。取消不会执行任何系统操作。</p><div class="actions"><button class="btn">取消</button><button class="btn trash">清空废纸篓</button></div></section></div></div>
+    </section>
+
+    <section class="state" id="update">
+      <span class="tag">关于与更新 · 网络检查</span><h2>检查公开 Release，外部完成下载</h2><p>ad-hoc 分发不做应用内替换。正式包忽略预发布，Beta 包包含预发布；应用只显示 Release 信息、`arm64` DMG 与 SHA-256 外部链接。</p>
+      <div class="window"><div class="bar"><strong>EasyMacBord</strong></div><div class="layout"><aside class="nav"><div class="brand">EasyMacBord<small>日常效率工具</small></div><span class="bottom">设置</span><span class="on">关于</span></aside><section class="view"><div class="head"><h3>关于 EasyMacBord</h3></div><div class="rows"><div class="row"><span>版本</span><b>包内版本与构建号</b></div><div class="row"><span>架构</span><b>arm64</b></div><div class="row"><span>分发方式</span><b>内部 ad-hoc 构建</b></div></div><div class="notice"><b>公开 Release 检查</b><br>Beta 构建可包含预发布。检查结果只提供 Release 说明、arm64 DMG 和 SHA-256 外部链接；EasyMacBord 不会下载、安装、替换或启动新版本。</div><div style="margin-top:13px"><button class="btn primary">检查更新</button> <button class="btn">在浏览器打开下载</button></div></section></div></div>
+    </section>
+
+    <section class="state" id="rules">
+      <span class="tag">交互行为规则</span><h2>实现与验收对照</h2>
+      <table>
+        <thead><tr><th>触发</th><th>用户操作</th><th>系统行为</th><th>反馈</th></tr></thead>
+        <tbody>
+          <tr><td>设备状态</td><td>点击“读取设备状态”</td><td>仅 USB 可读取。通过现有 `0x13 / S3R v1` 请求状态；仅接受匹配 request ID、完整分片、总长度与 CRC 正确的 `0x11 / kind 0x04` 响应。</td><td>读取中；成功后显示读取时间。校验失败时保留上一次有效摘要并显示错误。</td></tr>
+          <tr><td>能力判断</td><td>状态读取完成</td><td>只读取 `ai_keyboard.config_status.v1` 的 `capabilities.semantic_actions`、`ptt_hotkey` 与 `edit_ptt_hotkey`；字段缺失、未知或 false 都不推断为支持。</td><td>普通语义动作和 PTT 分别显示“可映射”或“设备未确认”。灯光与音乐律动始终显示“需要设备合同”。</td></tr>
+          <tr><td>前台应用规则</td><td>选择带 Bundle ID 的已发现应用</td><td>为当前配置档保存一条 `ProfileActivationRule`。相同 Bundle ID 的已启用规则不可重复。</td><td>显示规则已启用或具体校验原因。</td></tr>
+          <tr><td>自动同步</td><td>规则命中后 750 ms 内没有新的前台应用匹配</td><td>仅在存在可写通道、没有同步进行且配置有效时发送最后一次匹配的配置档；继续使用 USB 优先和确认回执校验。</td><td>发送中、已确认或具体失败原因；失败保留脏状态。</td></tr>
+          <tr><td>立即同步</td><td>点击“立即同步”</td><td>取消等待中的自动同步，发送当前版本一次；不与已有同步并发，也不跨通道回退。</td><td>同步状态替换等待状态。</td></tr>
+          <tr><td>输入预设</td><td>选择内建或自建文本、组合键预设</td><td>映射时复制预设当前内容。内建组合键包括剪切、删除、回车、聚焦搜索和切换输入法。</td><td>显示规范组合键；修改预设不改写已映射的按键。</td></tr>
+          <tr><td>喝水提醒</td><td>设置 1–1440 分钟的间隔</td><td>默认 30 分钟；仅在实际创建或更新提醒成功后更新通知状态。</td><td>成功、权限拒绝或创建失败的具体结果。</td></tr>
+          <tr><td>屏幕清洁</td><td>执行“屏幕清洁”</td><td>显示 EasyMacBord 自身的全屏黑色遮罩；Esc 或关闭按钮退出，不承诺禁用物理键盘。</td><td>遮罩显示与退出。</td></tr>
+          <tr><td>清空废纸篓</td><td>执行“清空废纸篓”</td><td>先显示本机确认；用户确认后才请求 Finder 清空废纸篓，取消不执行。</td><td>确认框及执行结果；不把取消写成成功。</td></tr>
+          <tr><td>更新检查</td><td>点击“检查更新”</td><td>读取公开 Release 列表；正式包忽略预发布，Beta 包包含预发布。只显示 Release 信息及带对应 SHA-256 的 arm64 DMG 外部链接；所选链接交由默认浏览器打开。</td><td>检查结果或失败原因；应用内不显示“已更新”，不下载 DMG 或改写应用包。</td></tr>
+        </tbody>
+      </table>
+      <p class="intro">Toast 规则：成功显示约 3 秒，警告约 5 秒，错误保留到用户关闭或下一次相关操作；同时最多三条。长应用名、规则名、动作名和状态字符串单行截断，悬停或辅助功能标签提供完整值。所有状态同时提供文字，不只依赖颜色。</p>
+    </section>
+  </main>
+</body>
+</html>

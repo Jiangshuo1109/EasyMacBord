@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### 已确认（开发中）
+
+- T05 增加基于前台应用的配置档自动切换规则与 750 ms 自动同步防抖；规则复用既有配置档、保存确认和 USB 优先路径，不改变设备配置格式。
+- T05 复用 Maker Status HID v1 的 `0x13 / S3R v1` 请求与 `0x11 / kind 0x04` 状态响应。只有校验通过的 `ai_keyboard.config_status.v1` 才能更新语义动作、PTT 热键和设备状态摘要。
+- T05 增加剪切、删除、回车、聚焦搜索、切换输入法的内建组合键预设，以及 1 至 1440 分钟、默认 30 分钟的喝水提醒。通知状态只在提醒动作实际执行后更新；清洁屏幕遮罩不拦截物理键盘，清空废纸篓必须本机确认。
+- 灯光和音乐律动在缺少新设备控制合同前为 `UNKNOWN / 不可用`；更新检查读取公开 GitHub Releases，Beta 包含预发布，只展示 Release 信息、`arm64` DMG 与 SHA-256 外部链接。
+
 ### 已实现（待合并）
 
 - T04 增加 Dock/菜单栏统一的主窗口恢复、独立动作库、输入预设、组合键录制、宏键盘映射、设置/关于和按实际能力整理的权限页。
@@ -13,13 +20,14 @@
 
 ### 已验证
 
-- Xcode 27.0 beta 6 下 `swift test --jobs 4` 通过，65/65；`swift build --configuration release --arch arm64` 通过。
-- `scripts/package-app.sh 0.1.0-beta.1` 通过；最新 DMG 为 `Signature=adhoc`、`TeamIdentifier=not set`。
+- Xcode 27.0 beta 6 下 `swift test --jobs 4` 通过，97/97；`swift build --configuration release --arch arm64` 通过。
+- `scripts/package-app.sh 0.1.0-beta.1` 通过；最新 DMG 为 `Signature=adhoc`、`TeamIdentifier=not set`，SHA-256 为 `e6dd56fa8f5877e51a7e619fe6ac49946a3adede696e1f79c3c8ad62006a7619`。
 
 ### 尚未验证
 
 - 发布包已查看默认 `1280 x 800` 状态总览、动作库、宏键盘、设置和关于；仅保留总览截图，不构成两种目标尺寸或 UI-01 至 UI-06 的完整验收。
 - `1120 x 720`、Dock 重新打开、M-01 至 M-08 本机工具验收和任何设备真机矩阵仍未执行；本节不构成已发布功能记录。
+- T05 的两种目标窗口尺寸已在隔离 Debug 构建中观察；Dock 重新打开、M-01 至 M-08、真实状态读取、前台应用切换、应用内成功更新检查和硬件观察均待验收。本节不构成设备能力证明。
 
 ## [0.1.0-beta.1] - 内部测试候选
 

@@ -5,6 +5,7 @@ import Foundation
 enum PermissionKind: String, CaseIterable, Identifiable {
     case accessibility
     case automation
+    case notifications
 
     var id: String { rawValue }
 
@@ -12,6 +13,7 @@ enum PermissionKind: String, CaseIterable, Identifiable {
         switch self {
         case .accessibility: "辅助功能"
         case .automation: "自动化"
+        case .notifications: "通知"
         }
     }
 }
@@ -82,6 +84,9 @@ final class PermissionCenter: ObservableObject {
         if states[.automation] == nil {
             states[.automation] = .notChecked
         }
+        if states[.notifications] == nil {
+            states[.notifications] = .notChecked
+        }
     }
 
     func requestAccessibility() {
@@ -94,6 +99,14 @@ final class PermissionCenter: ObservableObject {
 
     func recordAutomationFailure() {
         states[.automation] = .actionFailed
+    }
+
+    func recordNotificationSuccess() {
+        states[.notifications] = .granted
+    }
+
+    func recordNotificationFailure() {
+        states[.notifications] = .actionFailed
     }
 
     func state(for kind: PermissionKind) -> PermissionState {
@@ -109,7 +122,7 @@ final class PermissionCenter: ObservableObject {
         switch kind {
         case .accessibility:
             anchor = "Privacy_Accessibility"
-        case .automation:
+        case .automation, .notifications:
             return
         }
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)") else { return }

@@ -12,6 +12,11 @@ struct DeviceSyncView: View {
                     Text("仅展示应用已确认的设备信息")
                         .foregroundStyle(.secondary)
                     Spacer()
+                    Button("读取设备状态", systemImage: "arrow.clockwise") {
+                        model.requestDeviceStatus()
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!isUSBActive)
                     Button("同步当前配置", systemImage: "arrow.triangle.2.circlepath") {
                         model.beginSync()
                     }
@@ -56,6 +61,14 @@ struct DeviceSyncView: View {
                         DeviceDetailItem(title: "固件版本", value: model.deviceDetails.firmwareVersion.title)
                         DeviceDetailItem(title: "备用通道", value: model.deviceDetails.backupTransport.title)
                         DeviceDetailItem(title: "设备能力", value: model.deviceDetails.capabilities.title)
+                    }
+
+                    if model.deviceDetails.pttHotkey != .unknown || model.deviceDetails.editPTTHotkey != .unknown {
+                        Divider()
+                        HStack(spacing: 0) {
+                            DeviceDetailItem(title: "语音热键", value: model.deviceDetails.pttHotkey.title)
+                            DeviceDetailItem(title: "编辑热键", value: model.deviceDetails.editPTTHotkey.title)
+                        }
                     }
                 }
                 .padding(20)

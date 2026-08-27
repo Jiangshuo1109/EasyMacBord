@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EasyMacBord - 动作与场景设计稿</title>
+  <style>
+    :root {
+      --ink: #202422;
+      --subtle: #66706a;
+      --line: #d5dad5;
+      --canvas: #e8ece8;
+      --surface: #f8f9f7;
+      --side: #e2e7e2;
+      --device: #292f2d;
+      --device-edge: #151a18;
+      --key: #3a423f;
+      --key-top: #48514d;
+      --accent: #2e7567;
+      --accent-soft: #dcebe4;
+      --good: #347548;
+      --warn: #a86b25;
+      --danger: #aa4741;
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-width: 1120px;
+      margin: 0;
+      padding: 28px;
+      background: var(--canvas);
+      color: var(--ink);
+      font: 13px -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
+    }
+    button, input { font: inherit; }
+    .window {
+      width: 1280px;
+      min-height: 800px;
+      margin: 0 auto;
+      overflow: hidden;
+      border: 1px solid #bfc7c0;
+      border-radius: 10px;
+      background: var(--surface);
+      box-shadow: 0 18px 48px rgba(32, 42, 37, .14);
+    }
+    .titlebar {
+      display: flex;
+      align-items: center;
+      height: 46px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--line);
+      background: #f6f7f5;
+    }
+    .traffic { display: flex; gap: 7px; }
+    .traffic i { width: 11px; height: 11px; border-radius: 50%; background: #d5dad5; }
+    .traffic i:first-child { background: #e87062; }
+    .traffic i:nth-child(2) { background: #d9aa49; }
+    .traffic i:last-child { background: #67b557; }
+    .app-title { margin-left: 14px; font-weight: 650; }
+    .title-meta { margin-left: auto; color: var(--subtle); font-size: 12px; }
+    .shell { display: grid; grid-template-columns: 226px minmax(0, 1fr); min-height: 754px; }
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--line);
+      background: var(--side);
+    }
+    .brand { padding: 18px 16px 14px; border-bottom: 1px solid #cfd6d0; }
+    .brand-row { display: flex; align-items: center; gap: 10px; }
+    .brand-mark {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      place-items: center;
+      border: 1px solid #35574f;
+      border-radius: 7px;
+      background: #2f6f63;
+      color: #fff;
+      font-weight: 750;
+    }
+    .brand strong, .brand small { display: block; }
+    .brand strong { font-size: 14px; }
+    .brand small { margin-top: 2px; color: var(--subtle); }
+    .device-readout { display: grid; gap: 7px; margin-top: 15px; font-size: 12px; }
+    .device-readout div { display: flex; align-items: center; gap: 7px; color: var(--subtle); }
+    .signal { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+    .nav { display: grid; gap: 2px; padding: 13px 9px; }
+    .nav a { padding: 9px 10px; border-radius: 6px; color: #3b4540; text-decoration: none; }
+    .nav a.active { background: var(--accent-soft); color: #16584e; font-weight: 650; }
+    .nav a small { float: right; color: var(--subtle); font-weight: 500; }
+    .sidebar-bottom { margin-top: auto; padding: 14px 15px; border-top: 1px solid #cfd6d0; color: var(--subtle); font-size: 12px; line-height: 1.6; }
+    .sidebar-bottom b { color: var(--ink); font-weight: 600; }
+    main { min-width: 0; background: #f4f6f3; }
+    .workspace-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 72px;
+      padding: 0 26px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfa;
+    }
+    h1 { margin: 0; font-size: 19px; }
+    .workspace-head p { margin: 4px 0 0; color: var(--subtle); }
+    .grow { flex: 1; }
+    .status { display: inline-flex; align-items: center; gap: 6px; color: var(--good); font-size: 12px; }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      padding: 0 11px;
+      border: 1px solid #bdc7bf;
+      border-radius: 6px;
+      background: #fff;
+      color: #27312c;
+      text-decoration: none;
+    }
+    .button.primary { border-color: #235e52; background: var(--accent); color: #fff; font-weight: 600; }
+    .content { display: grid; grid-template-columns: minmax(0, 1fr) 296px; min-height: 682px; }
+    .console { min-width: 0; padding: 22px 26px 26px; border-right: 1px solid var(--line); }
+    .device-strip { display: grid; grid-template-columns: 1.1fr .82fr .86fr .74fr; border: 1px solid #cfd6d0; border-radius: 7px; overflow: hidden; background: #fff; }
+    .metric { min-width: 0; min-height: 80px; padding: 12px 14px; border-right: 1px solid var(--line); }
+    .metric:last-child { border: 0; }
+    .metric small { display: block; color: var(--subtle); }
+    .metric strong { display: block; overflow: hidden; margin-top: 13px; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+    .metric strong.ready { color: var(--good); }
+    .section-head { display: flex; align-items: center; gap: 8px; margin: 22px 0 11px; }
+    h2 { margin: 0; font-size: 14px; }
+    .section-head span { color: var(--subtle); font-size: 12px; }
+    .device-table {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 142px;
+      gap: 18px;
+      min-height: 356px;
+      padding: 26px;
+      border: 1px solid var(--device-edge);
+      border-radius: 8px;
+      background: var(--device);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.11), 0 4px 9px rgba(24, 31, 28, .16);
+    }
+    .device-label { position: absolute; top: 11px; left: 14px; color: #b8c4be; font-size: 11px; font-weight: 650; letter-spacing: .4px; }
+    .key-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; align-content: center; }
+    .keycap {
+      min-width: 0;
+      height: 114px;
+      padding: 12px;
+      border: 1px solid #5a655f;
+      border-bottom: 4px solid #1b211f;
+      border-radius: 7px;
+      background: var(--key);
+      color: #f1f5f1;
+    }
+    .keycap.active { border-color: #8bc6b2; background: var(--key-top); box-shadow: 0 0 0 2px #1d5c50; }
+    .keycap b { display: block; color: #b8c4be; font-size: 11px; }
+    .keycap span { display: block; overflow: hidden; margin-top: 21px; text-overflow: ellipsis; white-space: nowrap; font-weight: 620; }
+    .keycap em { display: block; overflow: hidden; margin-top: 6px; color: #b7c8c0; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-style: normal; }
+    .encoder-zone { display: grid; place-items: center; align-content: center; gap: 13px; border-left: 1px solid #4d5852; }
+    .knob { width: 91px; height: 91px; border: 10px solid #59645e; border-radius: 50%; background: #242a27; box-shadow: inset 0 0 0 2px #161b19; }
+    .knob:before { display: block; width: 3px; height: 20px; margin: 7px auto; background: #c4d2cb; content: ""; }
+    .encoder-zone b { color: #edf3ef; font-size: 12px; }
+    .encoder-zone span { color: #b7c8c0; font-size: 11px; }
+    .mapping-detail { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #cfd6d0; border-top: 0; border-radius: 0 0 7px 7px; background: #fff; }
+    .mapping-detail small { color: var(--subtle); }
+    .mapping-detail strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sidepanel { background: #fafbf9; }
+    .panel-section { padding: 19px 18px; border-bottom: 1px solid var(--line); }
+    .panel-section:last-child { border: 0; }
+    .panel-title { display: flex; align-items: center; margin-bottom: 13px; }
+    .panel-title h2 { font-size: 14px; }
+    .panel-title a { margin-left: auto; color: #1d6559; font-size: 12px; text-decoration: none; }
+    .rule-list { display: grid; gap: 7px; }
+    .rule {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      padding: 9px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+    }
+    .rule.selected { border-color: #b4d6ca; background: #eef7f2; }
+    .rule-icon { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid #c5d0c8; border-radius: 6px; background: #fff; color: #315a50; }
+    .rule b, .rule small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rule small { margin-top: 3px; color: var(--subtle); }
+    .rule .mark { color: var(--good); font-size: 14px; }
+    .action-row { display: flex; align-items: center; gap: 9px; min-height: 37px; padding: 7px 0; border-bottom: 1px solid #e1e5e1; }
+    .action-row:last-child { border: 0; }
+    .action-symbol { width: 21px; color: #4d5c55; text-align: center; }
+    .action-row b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 570; }
+    .action-row small { display: block; margin-top: 2px; color: var(--subtle); font-size: 11px; }
+    .capability { display: flex; align-items: flex-start; gap: 9px; padding: 10px; border: 1px solid #d3d9d3; border-radius: 6px; background: #f3f5f2; }
+    .capability strong, .capability span { display: block; }
+    .capability strong { font-size: 12px; }
+    .capability span { margin-top: 3px; color: var(--subtle); font-size: 11px; line-height: 1.45; }
+    .capability .unknown { color: var(--warn); }
+    .sync-note { display: flex; align-items: center; gap: 8px; margin-top: 11px; color: var(--subtle); font-size: 11px; }
+    .sync-note i { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+    .foot { width: 1280px; margin: 14px auto 0; color: #5d6861; font-size: 12px; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <section class="window" aria-label="T05 动作与场景主设计稿">
+    <header class="titlebar">
+      <div class="traffic" aria-hidden="true"><i></i><i></i><i></i></div>
+      <strong class="app-title">EasyMacBord</strong>
+      <span class="title-meta">动作与场景 · T05 设计参考</span>
+    </header>
+
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-row"><div class="brand-mark">E</div><div><strong>EasyMacBord</strong><small>EasyInput 控制台</small></div></div>
+          <div class="device-readout">
+            <div><i class="signal"></i>EasyInput AI <span>USB 已连接</span></div>
+            <div>状态读取：刚刚更新</div>
+          </div>
+        </div>
+        <nav class="nav" aria-label="主导航">
+          <a href="#">状态总览</a>
+          <a class="active" href="#">配置档</a>
+          <a href="#">动作库</a>
+          <a href="#">设备与同步</a>
+          <a href="#">权限</a>
+        </nav>
+        <div class="sidebar-bottom">当前配置档<br><b>深度工作</b><br>本地更改将在停止编辑后同步</div>
+      </aside>
+
+      <main>
+        <header class="workspace-head">
+          <div><h1>深度工作</h1><p>当前配置档；前台应用规则命中后可自动切换到此配置。</p></div>
+          <div class="grow"></div>
+          <span class="status"><i class="signal"></i>设备状态已校验</span>
+          <button class="button">读取设备状态</button>
+          <button class="button primary">立即同步</button>
+        </header>
+
+        <div class="content">
+          <section class="console">
+            <div class="device-strip">
+              <div class="metric"><small>写入通道</small><strong class="ready">USB 可写入</strong></div>
+              <div class="metric"><small>语义动作</small><strong class="ready">可映射</strong></div>
+              <div class="metric"><small>PTT 热键</small><strong class="ready">已读取</strong></div>
+              <div class="metric"><small>本地更改</small><strong>等待同步</strong></div>
+            </div>
+
+            <div class="section-head"><h2>设备台面</h2><span>选择控制件以查看当前配置档映射</span></div>
+            <section class="device-table" aria-label="EasyInput 8 键和旋钮映射">
+              <span class="device-label">EASYINPUT · 深度工作</span>
+              <div class="key-grid">
+                <button class="keycap active"><b>KEY 1</b><span>开始专注</span><em>快捷指令</em></button>
+                <button class="keycap"><b>KEY 2</b><span>记录灵感</span><em>固定文本</em></button>
+                <button class="keycap"><b>KEY 3</b><span>打开笔记</span><em>本机应用</em></button>
+                <button class="keycap"><b>KEY 4</b><span>切换计时</span><em>键盘组合键</em></button>
+                <button class="keycap"><b>KEY 5</b><span>截屏与录屏</span><em>系统工具</em></button>
+                <button class="keycap"><b>KEY 6</b><span>收起当前应用</span><em>系统工具</em></button>
+                <button class="keycap"><b>KEY 7</b><span>未设置</span><em>禁用</em></button>
+                <button class="keycap"><b>KEY 8</b><span>未设置</span><em>禁用</em></button>
+              </div>
+              <div class="encoder-zone"><div class="knob" aria-hidden="true"></div><b>旋钮</b><span>左转 音量减少</span><span>按下 静音切换</span><span>右转 音量增加</span></div>
+            </section>
+            <div class="mapping-detail"><small>已选择：KEY 1</small><div><strong>开始专注</strong><small>当前配置档的本机快捷指令</small></div><button class="button">编辑映射</button></div>
+          </section>
+
+          <aside class="sidepanel">
+            <section class="panel-section">
+              <div class="panel-title"><h2>自动切换</h2><a href="#">管理规则</a></div>
+              <div class="rule-list">
+                <div class="rule selected"><span class="rule-icon">A</span><div><b>专注写作</b><small>Bundle ID · 已启用</small></div><span class="mark">●</span></div>
+                <div class="rule"><span class="rule-icon">T</span><div><b>终端</b><small>Bundle ID · 已启用</small></div></div>
+              </div>
+              <div class="sync-note"><i></i>前台应用规则命中后，750 ms 自动同步</div>
+            </section>
+
+            <section class="panel-section">
+              <div class="panel-title"><h2>动作库快捷项</h2><a href="#">打开动作库</a></div>
+              <div class="action-row"><span class="action-symbol">⌘</span><div><b>聚焦搜索</b><small>内建组合键 · Meta+Space</small></div></div>
+              <div class="action-row"><span class="action-symbol">◒</span><div><b>喝水提醒</b><small>每 30 分钟 · 待实际执行</small></div></div>
+              <div class="action-row"><span class="action-symbol">▣</span><div><b>清洁屏幕遮罩</b><small>系统工具 · 可用 Escape 退出</small></div></div>
+            </section>
+
+            <section class="panel-section">
+              <div class="panel-title"><h2>设备能力</h2><a href="#">详情</a></div>
+              <div class="capability"><span>✓</span><div><strong>设备语义动作</strong><span>`semantic_actions` 已确认；PTT 动作还需读取两个热键字段。</span></div></div>
+              <div class="capability" style="margin-top:8px"><span class="unknown">!</span><div><strong>灯光与音乐律动</strong><span>需要新增设备控制合同。当前不可用，不会发送推测命令。</span></div></div>
+            </section>
+          </aside>
+        </div>
+      </main>
+    </div>
+  </section>
+  <p class="foot">本设计稿使用示例配置档、规则和动作名称，仅表达布局与交互优先级。设备名称、能力、状态读取时间、同步结果和动作执行结果均须由运行时数据与保存确认提供。</p>
+</body>
+</html>

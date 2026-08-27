@@ -26,4 +26,11 @@ final class KeyChordTests: XCTestCase {
         XCTAssertNil(KeyChord.key(forKeyCode: 63))
         XCTAssertNil(KeyChord.make(modifiers: [.function], key: .letter("f")))
     }
+
+    func testBuiltInTextCommandTemplatesUseCanonicalFirmwareChords() {
+        XCTAssertEqual(
+            InputPresetTemplate.allCases.map(\.chord),
+            ["Meta+X", "Backspace", "Return", "Meta+Space", "Ctrl+Space"]
+        )
+    }
 }

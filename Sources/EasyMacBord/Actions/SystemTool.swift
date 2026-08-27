@@ -12,6 +12,11 @@ enum SystemTool: String, CaseIterable, Identifiable, Sendable {
     case musicPlayPause
     case musicPrevious
     case musicNext
+    case openTerminal
+    case screenCleaner
+    case waterReminder
+    case emptyTrash
+    case arrangeDesktop
 
     var id: String { rawValue }
 
@@ -28,6 +33,11 @@ enum SystemTool: String, CaseIterable, Identifiable, Sendable {
         case .musicPlayPause: "Apple Music 播放/暂停"
         case .musicPrevious: "Apple Music 上一首"
         case .musicNext: "Apple Music 下一首"
+        case .openTerminal: "打开终端"
+        case .screenCleaner: "清洁屏幕遮罩"
+        case .waterReminder: "喝水提醒"
+        case .emptyTrash: "清空废纸篓"
+        case .arrangeDesktop: "整理桌面"
         }
     }
 
@@ -44,6 +54,11 @@ enum SystemTool: String, CaseIterable, Identifiable, Sendable {
         case .musicPlayPause: "playpause"
         case .musicPrevious: "backward.end"
         case .musicNext: "forward.end"
+        case .openTerminal: "terminal"
+        case .screenCleaner: "rectangle.on.rectangle.slash"
+        case .waterReminder: "drop"
+        case .emptyTrash: "trash"
+        case .arrangeDesktop: "rectangle.3.group"
         }
     }
 
@@ -58,8 +73,27 @@ enum SystemTool: String, CaseIterable, Identifiable, Sendable {
         .hideFrontmostApplication,
         .musicPlayPause,
         .musicPrevious,
-        .musicNext
+        .musicNext,
+        .openTerminal,
+        .screenCleaner,
+        .waterReminder,
+        .emptyTrash,
+        .arrangeDesktop
     ]
+
+    static func tool(forActionIdentifier identifier: String) -> SystemTool? {
+        if identifier.hasPrefix("waterReminder:") { return .waterReminder }
+        return SystemTool(rawValue: identifier)
+    }
+
+    static func waterReminderMinutes(from identifier: String) -> Int? {
+        guard identifier.hasPrefix("waterReminder:"),
+              let minutes = Int(identifier.dropFirst("waterReminder:".count)),
+              (1...1_440).contains(minutes) else {
+            return nil
+        }
+        return minutes
+    }
 }
 
 struct SystemShortcutTemplate: Identifiable, Equatable, Sendable {
@@ -76,6 +110,9 @@ struct SystemShortcutTemplate: Identifiable, Equatable, Sendable {
         .init(title: "隐藏 Dock", symbol: "dock.rectangle"),
         .init(title: "分屏布局", symbol: "rectangle.split.2x1"),
         .init(title: "调节显示器亮度", symbol: "sun.max"),
-        .init(title: "调节键盘亮度", symbol: "keyboard.chevron.compact.down")
+        .init(title: "调节键盘亮度", symbol: "keyboard.chevron.compact.down"),
+        .init(title: "Siri", symbol: "sparkles"),
+        .init(title: "网易云音乐控制", symbol: "music.note.list"),
+        .init(title: "剪贴板历史（EasyInput）", symbol: "clipboard")
     ]
 }

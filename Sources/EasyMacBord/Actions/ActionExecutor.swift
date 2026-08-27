@@ -11,6 +11,11 @@ final class ActionExecutor {
     private var activeShortcutProcesses: [ObjectIdentifier: Process] = [:]
     private let displayWakeLock = DisplayWakeLock()
     private let systemVolume = SystemVolumeController()
+    private let waterReminderScheduler: (any WaterReminderScheduling)?
+
+    init(waterReminderScheduler: (any WaterReminderScheduling)? = nil) {
+        self.waterReminderScheduler = waterReminderScheduler
+    }
 
     func execute(_ target: HostActionTarget) async -> ActionExecutionResult {
         switch target.kind {
@@ -20,8 +25,10 @@ final class ActionExecutor {
             return openURL(target)
         case .shortcut:
             return await runShortcut(target)
+        case .script:
+            return await runScript(target)
         case .system:
-            return openSystemAction(target)
+            return await openSystemAction(target)
         }
     }
 
@@ -61,11 +68,42 @@ final class ActionExecutor {
         return await waitForShortcut(process)
     }
 
-    private func waitForShortcut(_ process: Process) async -> ActionExecutionResult {
+    private func runScript(_ target: HostActionTarget) async -> ActionExecutionResult {
+        guard let bookmark = target.bookmark else { return .failed("未找到已授权的脚本") }
+        var stale = false
+        do {
+            let url = try URL(
+                resolvingBookmarkData: bookmark,
+                options: [.withSecurityScope],
+                relativeTo: nil,
+                bookmarkDataIsStale: &stale
+            )
+            guard !stale else { return .failed("脚本位置已变更，请重新选择") }
+            let supportedExtensions = ["scpt", "applescript", "command", "sh"]
+            guard supportedExtensions.contains(url.pathExtension.lowercased()) else {
+                return .failed("脚本类型不受支持")
+            }
+            let accessed = url.startAccessingSecurityScopedResource()
+            defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+            let process = Process()
+            if ["scpt", "applescript"].contains(url.pathExtension.lowercased()) {
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+                process.arguments = [url.path]
+            } else {
+                process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+                process.arguments = [url.path]
+            }
+            return await waitForShortcut(process, failureMessage: "授权脚本执行失败")
+        } catch {
+            return .failed("无法读取已授权的脚本")
+        }
+    }
+
+    private func waitForShortcut(_ process: Process, failureMessage: String = "快捷指令执行失败") async -> ActionExecutionResult {
         let identifier = ObjectIdentifier(process)
         return await withCheckedContinuation { continuation in
             process.terminationHandler = { [weak self] completed in
-                let result: ActionExecutionResult = completed.terminationStatus == 0 ? .succeeded : .failed("快捷指令执行失败")
+                let result: ActionExecutionResult = completed.terminationStatus == 0 ? .succeeded : .failed(failureMessage)
                 Task { @MainActor in
                     self?.activeShortcutProcesses.removeValue(forKey: identifier)
                     continuation.resume(returning: result)
@@ -80,7 +118,7 @@ final class ActionExecutor {
         }
     }
 
-    private func openSystemAction(_ target: HostActionTarget) -> ActionExecutionResult {
+    private func openSystemAction(_ target: HostActionTarget) async -> ActionExecutionResult {
         switch target.payload {
         case "screenshot":
             let screenshot = URL(fileURLWithPath: "/System/Library/CoreServices/Applications/Screenshot.app")
@@ -116,7 +154,22 @@ final class ActionExecutor {
             return runAppleMusic(command: "previous track")
         case "musicNext":
             return runAppleMusic(command: "next track")
+        case "openTerminal":
+            let terminal = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
+            return NSWorkspace.shared.open(terminal) ? .succeeded : .failed("无法打开终端")
+        case "screenCleaner":
+            // The view layer presents the temporary full-screen overlay. There
+            // is intentionally no attempt to suppress physical keyboard input.
+            return .succeeded
+        case "emptyTrash":
+            return runFinder(command: "empty the trash")
+        case "arrangeDesktop":
+            return runFinder(command: "clean up window of desktop")
         default:
+            if let minutes = SystemTool.waterReminderMinutes(from: target.payload) {
+                let scheduler = waterReminderScheduler ?? WaterReminderScheduler()
+                return await scheduler.schedule(everyMinutes: minutes)
+            }
             return .failed("此系统动作尚不可用")
         }
     }
@@ -150,6 +203,16 @@ final class ActionExecutor {
         let script = NSAppleScript(source: source)
         guard script?.executeAndReturnError(&error) != nil else {
             return .failed("Apple Music 未能执行，请检查自动化授权")
+        }
+        return .succeeded
+    }
+
+    private func runFinder(command: String) -> ActionExecutionResult {
+        var error: NSDictionary?
+        let source = #"tell application "Finder" to "# + command
+        let script = NSAppleScript(source: source)
+        guard script?.executeAndReturnError(&error) != nil else {
+            return .failed("Finder 未能执行，请检查自动化授权")
         }
         return .succeeded
     }

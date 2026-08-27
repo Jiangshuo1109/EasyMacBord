@@ -11,6 +11,12 @@ enum DebugUIState: String, CaseIterable, Equatable {
     case emptyActions = "empty-actions"
     case permissionDenied = "permission-denied"
     case longNames = "long-names"
+    case oldFirmware = "old-firmware"
+    case semanticActionsUnavailable = "semantic-actions-unavailable"
+    case scriptMissing = "script-missing"
+    case automaticSyncing = "automatic-syncing"
+    case ruleConflict = "rule-conflict"
+    case noResults = "no-results"
 
     init?(arguments: [String]) {
         guard let flagIndex = arguments.firstIndex(of: "--ui-state"),

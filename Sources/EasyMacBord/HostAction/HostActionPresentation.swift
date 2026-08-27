@@ -3,13 +3,14 @@ import Foundation
 
 enum HostActionPresentation {
     static func symbol(for target: HostActionTarget) -> String {
-        if target.kind == .system, let tool = SystemTool(rawValue: target.payload) {
+        if target.kind == .system, let tool = SystemTool.tool(forActionIdentifier: target.payload) {
             return tool.symbol
         }
         return switch target.kind {
         case .application: "app"
         case .url: "link"
         case .shortcut: "command"
+        case .script: "doc.badge.gearshape"
         case .system: "gearshape"
         }
     }
@@ -40,6 +41,7 @@ enum HostActionPresentation {
         case .application: "应用"
         case .url: "网址"
         case .shortcut: "快捷指令"
+        case .script: "授权脚本"
         case .system: "系统"
         }
     }

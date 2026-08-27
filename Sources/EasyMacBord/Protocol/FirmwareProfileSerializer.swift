@@ -3,6 +3,7 @@ import Foundation
 enum FirmwareProfileSerializer {
     enum Error: Swift.Error, Equatable {
         case invalidHostActionID
+        case invalidSemanticAction
         case nonASCIIValue
         case unsupportedBinding
     }
@@ -39,6 +40,11 @@ enum FirmwareProfileSerializer {
                 throw Error.invalidHostActionID
             }
             return "host_action:" + binding.value
+        case .semanticAction:
+            guard let action = SemanticAction(rawValue: binding.value) else {
+                throw Error.invalidSemanticAction
+            }
+            return action.rawValue
         case .fixedText:
             return ["text": binding.value]
         case .keyChord:

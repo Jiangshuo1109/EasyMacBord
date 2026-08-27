@@ -88,11 +88,51 @@ struct RootView: View {
             case .permissions:
                 PermissionsView(model: model)
             case .settings:
-                PreferencesView(preferences: preferences)
+                PreferencesView(preferences: preferences, model: model)
             case .about:
                 AboutView()
             }
         }
+        .overlay {
+            if model.isScreenCleanerPresented {
+                ScreenCleanerOverlay(close: model.closeScreenCleaner)
+            }
+        }
+        .confirmationDialog(
+            "确认清空废纸篓",
+            isPresented: Binding(
+                get: { model.pendingDestructiveAction != nil },
+                set: { if !$0 { model.cancelPendingDestructiveAction() } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("清空废纸篓", role: .destructive) {
+                model.confirmPendingDestructiveAction()
+            }
+            Button("取消", role: .cancel) {
+                model.cancelPendingDestructiveAction()
+            }
+        } message: {
+            Text("此操作会删除废纸篓中的项目，无法撤销。")
+        }
+    }
+}
+
+private struct ScreenCleanerOverlay: View {
+    let close: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black
+                .ignoresSafeArea()
+            Button("关闭", action: close)
+                .buttonStyle(.bordered)
+                .tint(.white)
+                .padding(20)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onExitCommand(perform: close)
+        .accessibilityLabel("清洁屏幕遮罩")
     }
 }
 

@@ -39,6 +39,46 @@ struct InputPreset: Codable, Equatable, Identifiable, Hashable {
     }
 }
 
+enum InputPresetTemplate: String, CaseIterable, Identifiable {
+    case cut
+    case delete
+    case returnKey
+    case focusSearch
+    case switchInputSource
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .cut: "剪切"
+        case .delete: "删除"
+        case .returnKey: "回车"
+        case .focusSearch: "聚焦搜索"
+        case .switchInputSource: "切换输入法"
+        }
+    }
+
+    var chord: String {
+        switch self {
+        case .cut: "Meta+X"
+        case .delete: "Backspace"
+        case .returnKey: "Return"
+        case .focusSearch: "Meta+Space"
+        case .switchInputSource: "Ctrl+Space"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .cut: "scissors"
+        case .delete: "delete.left"
+        case .returnKey: "return"
+        case .focusSearch: "magnifyingglass"
+        case .switchInputSource: "character.cursor.ibeam"
+        }
+    }
+}
+
 enum KeyChord {
     struct Modifiers: OptionSet, Equatable, Sendable {
         let rawValue: UInt

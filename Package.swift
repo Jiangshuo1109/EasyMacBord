@@ -21,7 +21,8 @@ let package = Package(
                 .linkedFramework("CoreAudio"),
                 .linkedFramework("IOKit"),
                 .linkedFramework("ServiceManagement"),
-                .linkedFramework("SwiftUI")
+                .linkedFramework("SwiftUI"),
+                .linkedFramework("UserNotifications")
             ]
         ),
         .testTarget(

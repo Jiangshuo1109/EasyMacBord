@@ -94,6 +94,7 @@ private struct PermissionRow: View {
         switch kind {
         case .accessibility: "accessibility"
         case .automation: "gearshape"
+        case .notifications: "bell"
         }
     }
 
@@ -101,6 +102,7 @@ private struct PermissionRow: View {
         switch kind {
         case .accessibility: "用于需要系统辅助功能支持的操作。"
         case .automation: "由快捷指令或应用控制操作在实际执行后更新。"
+        case .notifications: "喝水提醒在实际执行后请求并更新。"
         }
     }
 

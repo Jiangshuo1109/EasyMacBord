@@ -5,7 +5,7 @@ import XCTest
 final class PermissionCenterTests: XCTestCase {
     @MainActor
     func testPermissionKindsMatchCurrentCapabilities() {
-        XCTAssertEqual(PermissionKind.allCases, [.accessibility, .automation])
+        XCTAssertEqual(PermissionKind.allCases, [.accessibility, .automation, .notifications])
     }
 
     @MainActor
@@ -44,6 +44,19 @@ final class PermissionCenterTests: XCTestCase {
         XCTAssertEqual(center.state(for: .automation), .notChecked)
         center.recordAutomationFailure()
         XCTAssertEqual(center.state(for: .automation), .actionFailed)
+    }
+
+    @MainActor
+    func testNotificationStateOnlyChangesAfterReminderExecution() {
+        let center = PermissionCenter(
+            accessibilityAuthorizer: FakeAccessibilityAuthorizer(isTrusted: true, promptResult: true)
+        )
+
+        XCTAssertEqual(center.state(for: .notifications), .notChecked)
+        center.recordNotificationSuccess()
+        XCTAssertEqual(center.state(for: .notifications), .granted)
+        center.recordNotificationFailure()
+        XCTAssertEqual(center.state(for: .notifications), .actionFailed)
     }
 }
 

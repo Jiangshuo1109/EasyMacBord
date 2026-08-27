@@ -5,6 +5,7 @@ struct HostActionTarget: Codable, Equatable, Identifiable {
         case application
         case url
         case shortcut
+        case script
         case system
     }
 
@@ -26,6 +27,18 @@ struct HostActionTarget: Codable, Equatable, Identifiable {
 extension HostActionTarget {
     var isAppleMusicAction: Bool {
         kind == .system && ["musicPlayPause", "musicPrevious", "musicNext"].contains(payload)
+    }
+
+    /// These targets ask macOS to control another app or Finder, so their
+    /// result is the only reliable source for the Automation permission state.
+    var requiresAutomationPermission: Bool {
+        if kind == .shortcut || kind == .script || isAppleMusicAction {
+            return true
+        }
+        return kind == .system && [
+            SystemTool.emptyTrash.rawValue,
+            SystemTool.arrangeDesktop.rawValue
+        ].contains(payload)
     }
 }
 
@@ -68,6 +81,22 @@ actor HostActionRegistry {
         return target
     }
 
+    func makeScriptTarget(url: URL) throws -> HostActionTarget {
+        let allowedExtensions = ["scpt", "applescript", "command", "sh"]
+        guard allowedExtensions.contains(url.pathExtension.lowercased()) else {
+            throw RegistryError.unsupportedScriptFile
+        }
+        let bookmark = try url.bookmarkData(
+            options: [.withSecurityScope],
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+        let title = url.deletingPathExtension().lastPathComponent
+        let target = HostActionTarget(kind: .script, title: title, payload: "script", bookmark: bookmark)
+        targets[target.id] = target
+        return target
+    }
+
     func makeSystemTarget(title: String, identifier: String, fileURL: URL? = nil) throws -> HostActionTarget {
         let bookmark = try fileURL.map {
             try $0.bookmarkData(
@@ -88,5 +117,11 @@ actor HostActionRegistry {
         let target = HostActionTarget(kind: .system, title: title, payload: identifier, bookmark: bookmark)
         targets[target.id] = target
         return target
+    }
+}
+
+extension HostActionRegistry {
+    enum RegistryError: Swift.Error {
+        case unsupportedScriptFile
     }
 }

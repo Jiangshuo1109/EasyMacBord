@@ -29,10 +29,31 @@ final class UIStateTests: XCTestCase {
         XCTAssertEqual(model.syncHistory.lastReceipt?.bytes, 256)
     }
 
+    @MainActor
+    func testPermissionDeniedFixtureShowsActionFailures() {
+        let model = AppModel(startServices: false)
+        model.applyDebugUIState(.permissionDenied)
+
+        XCTAssertEqual(model.permissions.state(for: .automation), .actionFailed)
+        XCTAssertEqual(model.permissions.state(for: .notifications), .actionFailed)
+    }
+
+    @MainActor
+    func testNoResultsFixtureSuppliesAnActionLibrarySearchTerm() {
+        let model = AppModel(startServices: false)
+        model.applyDebugUIState(.noResults)
+
+        XCTAssertEqual(model.debugActionLibrarySearchText, "没有匹配项")
+    }
+
     func testDebugUIStateParsesKnownLaunchArgument() {
         XCTAssertEqual(
             DebugUIState(arguments: ["EasyMacBord", "--ui-state", "sync-failed"]),
             .syncFailed
+        )
+        XCTAssertEqual(
+            DebugUIState(arguments: ["EasyMacBord", "--ui-state", "semantic-actions-unavailable"]),
+            .semanticActionsUnavailable
         )
     }
 
@@ -64,6 +85,43 @@ final class UIStateTests: XCTestCase {
         XCTAssertEqual(details.firmwareVersion.title, "未读取")
         XCTAssertEqual(details.backupTransport.title, "未读取")
         XCTAssertEqual(details.capabilities.title, "未读取")
+    }
+
+    func testStatusReadTimeoutTracksTheLatestRequestInsteadOfOldDetails() {
+        var state = DeviceStatusReadState()
+        let first = state.begin()
+        state.finish()
+        let second = state.begin()
+
+        XCTAssertFalse(state.isActive(first))
+        XCTAssertTrue(state.isActive(second))
+    }
+
+    func testSemanticActionsRequireConfirmedCapability() {
+        var details = DeviceDetails(
+            firmwareVersion: .value("0.1.26"),
+            capabilities: .value("semantic_actions=true"),
+            pttHotkey: .value("RightMeta"),
+            editPTTHotkey: .value("RightOption"),
+            semanticActionsAvailable: false
+        )
+
+        XCTAssertFalse(details.supports(.copy))
+        details.semanticActionsAvailable = true
+        XCTAssertTrue(details.supports(.copy))
+        XCTAssertTrue(details.supports(.voicePTTHold))
+    }
+
+    func testProfileWithUnsupportedSemanticActionIsHeldBackFromSync() {
+        let profile = Profile(
+            name: "语义动作",
+            bindings: [
+                .key1: ActionBinding(kind: .semanticAction, value: SemanticAction.copy.rawValue, title: "复制")
+            ]
+        )
+        let unavailableDevice = DeviceDetails(semanticActionsAvailable: false)
+
+        XCTAssertEqual(profile.firstUnsupportedSemanticAction(for: unavailableDevice), .copy)
     }
 
     func testFailureKeepsLastConfirmedReceipt() {

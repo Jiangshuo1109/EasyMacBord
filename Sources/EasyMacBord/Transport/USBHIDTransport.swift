@@ -90,6 +90,25 @@ final class USBHIDTransport: ConfigurationTransport {
         }
     }
 
+    /// Sends the 16-byte S3R v1 body using the firmware's status Feature
+    /// Report. Status replies continue to arrive through the existing 0x11
+    /// input-report callback.
+    func requestStatus(requestID: UInt32, fresh: Bool) throws {
+        guard let activeDevice, isAvailable else { throw TransportError.unavailable(.usb) }
+        let request = try DeviceProtocol.makeStatusRequest(requestID: requestID, fresh: fresh)
+        let result = request.withUnsafeBytes { bytes in
+            guard let address = bytes.baseAddress else { return kIOReturnBadArgument }
+            return IOHIDDeviceSetReport(
+                activeDevice,
+                kIOHIDReportTypeFeature,
+                CFIndex(DeviceProtocol.statusRequestReportID),
+                address.assumingMemoryBound(to: UInt8.self),
+                request.count
+            )
+        }
+        guard result == kIOReturnSuccess else { throw TransportError.writeFailed(.usb) }
+    }
+
     var activeEventChannel: TransportChannel? {
         EventChannelRouter.activeEventChannel(
             usbAvailable: isAvailable,
