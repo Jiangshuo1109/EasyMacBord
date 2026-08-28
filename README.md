@@ -40,6 +40,7 @@ scripts/package-app.sh 0.1.0-beta.2
 - [UI 改造实施方案](设计/v0.1-EasyMacBord桌面端/UI改造实施方案.md)
 - [T04 桌面体验与动作中心设计说明](设计/v0.1-EasyMacBord桌面端/T04桌面体验与动作中心设计说明.md)
 - [课程门禁记录](flow/course-gates.md)
+- [内部 Beta 验收清单](flow/内部Beta验收清单.md)
 - [T04 桌面体验与动作中心任务卡](flow/tasks/T04-桌面体验与动作中心.md)
 - [T05 动作与场景设计稿](设计/v0.2-动作与场景/动作与场景-设计稿.html)
 - [T05 动作与场景全状态设计参考](设计/v0.2-动作与场景/动作与场景-全状态设计参考.html)
