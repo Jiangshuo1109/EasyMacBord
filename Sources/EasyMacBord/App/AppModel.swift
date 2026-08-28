@@ -994,6 +994,32 @@ final class AppModel: ObservableObject {
 
 #if DEBUG
 extension AppModel {
+    func beginDebugConfigurationConfirmationWait(
+        through channel: TransportChannel,
+        bytes: UInt16,
+        crc16: UInt16
+    ) {
+        expectedAcknowledgement = ConfigurationAcknowledgementExpectation(
+            channel: channel,
+            bytes: bytes,
+            crc16: crc16
+        )
+        syncingProfileID = selectedProfileID
+        syncState = .sending
+        statusMessage = "正在等待设备确认"
+    }
+
+    func receiveDebugConfigurationAcknowledgement(
+        _ acknowledgement: DeviceProtocol.ConfigurationAcknowledgement,
+        from channel: TransportChannel
+    ) {
+        receiveConfigurationAcknowledgement(acknowledgement, from: channel)
+    }
+
+    var debugExpectedAcknowledgementChannel: TransportChannel? {
+        expectedAcknowledgement?.channel
+    }
+
     func applyDebugUIState(_ state: DebugUIState) {
         let confirmedAt = Date(timeIntervalSince1970: 1_700_000_000)
         let acknowledgement = DeviceProtocol.ConfigurationAcknowledgement(

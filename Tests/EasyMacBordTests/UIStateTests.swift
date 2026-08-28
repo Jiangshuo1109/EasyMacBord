@@ -30,6 +30,30 @@ final class UIStateTests: XCTestCase {
     }
 
     @MainActor
+    func testDifferentChannelConfirmationKeepsWaitingForTheSendingChannel() {
+        let model = AppModel(startServices: false)
+        let acknowledgement = DeviceProtocol.ConfigurationAcknowledgement(
+            phase: 1,
+            ok: true,
+            bytes: 128,
+            crc16: 0x12AB,
+            saved: true
+        )
+
+        model.beginDebugConfigurationConfirmationWait(
+            through: .usb,
+            bytes: acknowledgement.bytes,
+            crc16: acknowledgement.crc16
+        )
+        model.receiveDebugConfigurationAcknowledgement(acknowledgement, from: .bluetooth)
+
+        XCTAssertEqual(model.syncState, .sending)
+        XCTAssertEqual(model.statusMessage, "已忽略蓝牙 确认，正在等待USB 确认")
+        XCTAssertEqual(model.debugExpectedAcknowledgementChannel, .usb)
+        XCTAssertNil(model.syncHistory.lastReceipt)
+    }
+
+    @MainActor
     func testPermissionDeniedFixtureShowsActionFailures() {
         let model = AppModel(startServices: false)
         model.applyDebugUIState(.permissionDenied)
