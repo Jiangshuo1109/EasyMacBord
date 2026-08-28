@@ -1,6 +1,6 @@
 # 变更记录
 
-本项目按 Keep a Changelog 的思路维护。只有已合并的代码、已确认的文档决策和已发布的构建产物进入本文件。
+本项目按 Keep a Changelog 的思路维护。已确认的功能分支变更、文档决策和内部候选包均记录在此；是否已合并到 `main` 由各条目明确说明。
 
 ## [Unreleased]
 
@@ -18,13 +18,13 @@
 - T03 为动作库补充“从本机应用登记”：只读扫描常规应用程序目录，用户选择后才生成本地应用映射。
 - T03 增加可登记的直接工具：系统截图与录屏界面、锁定屏幕、仅防止闲置显示器休眠、用户选图壁纸、默认输出音量、隐藏前台应用和 Apple Music 基础控制。
 - 深色模式、屏保、键盘清洁、隐藏桌面文件/Dock、分屏、显示器亮度和键盘亮度以用户快捷指令模板接入，不新增私有系统实现。
-- BLE 配置写入在无 CoreBluetooth 回调时会超时释放，后续同步可重试；同步固定发送通道，仅接受同一通道的保存确认。PTT 状态字段允许缺失，缺失时只禁用对应 PTT 动作。
-- 内部打包脚本输出包含提交、工具链、测试数、DMG 摘要和签名摘要的 manifest；dirty 工作树的包只可用于诊断，不可作为候选发布物。
+- BLE 配置写入在无 CoreBluetooth 回调时会超时释放，后续同步可重试；同步固定发送通道，异通道确认只会被忽略并继续等待，同通道内容不一致才会失败。PTT 状态字段允许缺失，缺失时只禁用对应 PTT 动作。
+- 内部打包脚本输出包含提交、工具链、测试数、DMG 摘要和签名摘要的 manifest；默认拒绝 dirty 工作树，只有显式诊断参数才能生成不可发布的 dirty 包。候选验证脚本复核 manifest、哈希、签名和 arm64 架构。
 
 ### 已验证
 
-- 当前工作树下 `swift test --jobs 4` 通过，112/112；`swift build --configuration release --arch arm64` 通过。
-- `0.1.0-beta.1` 的历史内部包使用 ad-hoc 签名，`TeamIdentifier=not set`。下一候选包须从 clean 工作树生成 `.manifest.json` 后再记录其哈希。
+- 当前工作树下 `swift test --jobs 4` 通过，113/113；`swift build --configuration release --arch arm64` 通过。
+- `0.1.0-beta.2` 已作为内部候选包生成，使用 ad-hoc 签名，`TeamIdentifier=not set`。下一候选包须从 clean 工作树生成 `.manifest.json` 后再记录其哈希。
 
 ### 尚未验证
 

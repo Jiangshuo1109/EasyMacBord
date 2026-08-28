@@ -16,3 +16,5 @@ jobs:
         run: swift test --jobs 4
       - name: Build arm64 release binary
         run: swift build --configuration release --arch arm64
+      - name: Check candidate verifier syntax
+        run: zsh -n scripts/verify-candidate.sh

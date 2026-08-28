@@ -2,7 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${1:-0.1.0}"
+VERSION=""
+ALLOW_DIRTY=false
 DIST_DIR="$ROOT_DIR/dist"
 APP_DIR="$DIST_DIR/EasyMacBord.app"
 DMG_FILE="$DIST_DIR/EasyMacBord-${VERSION}-arm64.dmg"
@@ -32,6 +33,43 @@ cleanup() {
 }
 trap cleanup EXIT
 
+usage() {
+  cat <<'USAGE'
+Usage: scripts/package-app.sh <version> [--allow-dirty]
+
+Internal Beta candidates require a clean source tree. Use --allow-dirty only
+for a local diagnostic package; its manifest cannot be used as a candidate.
+USAGE
+}
+
+for argument in "$@"; do
+  case "$argument" in
+    --allow-dirty)
+      ALLOW_DIRTY=true
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    -*)
+      usage >&2
+      exit 2
+      ;;
+    *)
+      if [[ -n "$VERSION" ]]; then
+        usage >&2
+        exit 2
+      fi
+      VERSION="$argument"
+      ;;
+  esac
+done
+
+if [[ -z "$VERSION" ]]; then
+  usage >&2
+  exit 2
+fi
+
 cd "$ROOT_DIR"
 if [[ ! "$VERSION" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
   echo "Version must contain only letters, numbers, dots, underscores, or hyphens." >&2
@@ -41,6 +79,10 @@ fi
 GIT_COMMIT="$(git rev-parse --verify HEAD)"
 if [[ -n "$(git status --porcelain --untracked-files=normal)" ]]; then
   SOURCE_TREE_STATE="dirty"
+  if [[ "$ALLOW_DIRTY" != true ]]; then
+    echo "Refusing to create a candidate from a dirty source tree. Use --allow-dirty only for local diagnostics." >&2
+    exit 1
+  fi
 else
   SOURCE_TREE_STATE="clean"
 fi

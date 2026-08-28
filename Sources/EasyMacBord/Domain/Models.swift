@@ -190,20 +190,37 @@ enum TransportChannel: String, Codable, CaseIterable, Identifiable {
 }
 
 struct ConfigurationAcknowledgementExpectation: Equatable {
+    enum Assessment: Equatable {
+        case accepted
+        case ignoredDifferentChannel
+        case rejected
+    }
+
     let channel: TransportChannel
     let bytes: UInt16
     let crc16: UInt16
+
+    func assess(
+        _ acknowledgement: DeviceProtocol.ConfigurationAcknowledgement,
+        from channel: TransportChannel
+    ) -> Assessment {
+        guard self.channel == channel else { return .ignoredDifferentChannel }
+
+        guard acknowledgement.phase == 1,
+              acknowledgement.ok,
+              acknowledgement.saved,
+              acknowledgement.bytes == bytes,
+              acknowledgement.crc16 == crc16 else {
+            return .rejected
+        }
+        return .accepted
+    }
 
     func matches(
         _ acknowledgement: DeviceProtocol.ConfigurationAcknowledgement,
         from channel: TransportChannel
     ) -> Bool {
-        self.channel == channel
-            && acknowledgement.phase == 1
-            && acknowledgement.ok
-            && acknowledgement.saved
-            && acknowledgement.bytes == bytes
-            && acknowledgement.crc16 == crc16
+        assess(acknowledgement, from: channel) == .accepted
     }
 }
 

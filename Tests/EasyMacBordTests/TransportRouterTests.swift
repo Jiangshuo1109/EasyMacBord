@@ -83,6 +83,27 @@ final class TransportRouterTests: XCTestCase {
 
         XCTAssertTrue(expected.matches(acknowledgement, from: .usb))
         XCTAssertFalse(expected.matches(acknowledgement, from: .bluetooth))
+        XCTAssertEqual(
+            expected.assess(acknowledgement, from: .bluetooth),
+            .ignoredDifferentChannel
+        )
+    }
+
+    func testConfigurationAcknowledgementRejectsMismatchedContentOnTheSendingChannel() {
+        let expected = ConfigurationAcknowledgementExpectation(
+            channel: .usb,
+            bytes: 128,
+            crc16: 0x12ab
+        )
+        let acknowledgement = DeviceProtocol.ConfigurationAcknowledgement(
+            phase: 1,
+            ok: true,
+            bytes: 127,
+            crc16: 0x12ab,
+            saved: true
+        )
+
+        XCTAssertEqual(expected.assess(acknowledgement, from: .usb), .rejected)
     }
 
     func testBluetoothHIDRemainsVisibleAfterUSBConfigurationDisconnects() {

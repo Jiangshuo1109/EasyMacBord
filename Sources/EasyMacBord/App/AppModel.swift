@@ -535,13 +535,16 @@ final class AppModel: ObservableObject {
         from channel: TransportChannel
     ) {
         guard let expected = expectedAcknowledgement else { return }
-        guard expected.matches(acknowledgement, from: channel) else {
+        switch expected.assess(acknowledgement, from: channel) {
+        case .ignoredDifferentChannel:
+            statusMessage = "已忽略\(inputChannelTitle(channel))确认，正在等待\(inputChannelTitle(expected.channel))确认"
+            return
+        case .rejected:
             recordSyncFailure("设备确认与本次配置不一致")
             statusMessage = "设备未确认保存"
-            expectedAcknowledgement = nil
-            syncTimeoutTask?.cancel()
-            syncTimeoutTask = nil
             return
+        case .accepted:
+            break
         }
         let confirmedAt = Date.now
         let completedProfileID = syncingProfileID
