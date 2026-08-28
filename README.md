@@ -13,7 +13,7 @@ EasyMacBord 是 EasyInput V2.0 的 macOS 日常效率工具。它负责配置档
 
 T05“动作与场景”已在功能分支实现：前台应用规则只按 Bundle ID 切换既有配置档；状态读取以现有 `0x13 / S3R v1` 与 `0x11 / kind 0x04` 合同校验状态；语义动作按能力与各自的 PTT 字段门控。动作库新增五个内建组合键预设、可配置喝水提醒、清洁屏幕遮罩和废纸篓本机确认；灯光和音乐律动仍未接入。关于页只检查公开 GitHub Releases，Beta 包含预发布，只展示 Release 信息、`arm64` DMG 与 SHA-256 外部链接，不提供自动更新。
 
-当前工作树的 `swift test --jobs 4` 为 113/113，arm64 Release 构建通过。USB Status HID 已在兼容设备上完成请求、分片、长度、CRC、schema 与能力字段的只读验证；这不代表配置写入、BLE 配置通道、实体输入或 Host Action 已验收。`1280 x 800` 与 `1120 x 720` 的 Debug 界面观察见 [T05 UI 证据](flow/evidence/t05-actions-scenes/UI-验收-2026-08-27.md)。Dock 重新打开、本机工具、应用内成功更新检查和真机矩阵仍待实际验证，详见 [T05 任务卡](flow/tasks/T05-动作与场景.md)。
+当前工作树的 `swift test --jobs 4` 为 113/113，arm64 Release 构建通过。内部候选 `0.1.0-beta.3` 由干净提交 `af07bbd` 生成，DMG SHA-256 为 `67a8fcb73f2245588f89cf20f70ac2de1860298f24ce373fdfe50410ec2bd788`，签名为 ad-hoc，未公证。USB Status HID 已在兼容设备上完成请求、分片、长度、CRC、schema 与能力字段的只读验证；这不代表配置写入、BLE 配置通道、实体输入或 Host Action 已验收。`1280 x 800` 与 `1120 x 720` 的 Debug 界面观察见 [T05 UI 证据](flow/evidence/t05-actions-scenes/UI-验收-2026-08-27.md)。Dock 重新打开、本机工具、应用内成功更新检查和真机矩阵仍待实际验证，详见 [T05 任务卡](flow/tasks/T05-动作与场景.md)。
 
 AI、TTS、板端录音、Wi-Fi 音频、音乐律动和外接显示器 DDC 不属于 v0.1。
 
