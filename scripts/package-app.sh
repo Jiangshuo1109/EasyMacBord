@@ -19,7 +19,7 @@ json_string() {
   value="${value//$'\n'/\\n}"
   value="${value//$'\r'/\\r}"
   value="${value//$'\t'/\\t}"
-  print -r -- "\"$value\""
+  print -nr -- "\"$value\""
 }
 
 codesign_field() {
