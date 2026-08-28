@@ -6,9 +6,9 @@ VERSION=""
 ALLOW_DIRTY=false
 DIST_DIR="$ROOT_DIR/dist"
 APP_DIR="$DIST_DIR/EasyMacBord.app"
-DMG_FILE="$DIST_DIR/EasyMacBord-${VERSION}-arm64.dmg"
-CHECKSUM_FILE="$DMG_FILE.sha256"
-MANIFEST_FILE="$DMG_FILE.manifest.json"
+DMG_FILE=""
+CHECKSUM_FILE=""
+MANIFEST_FILE=""
 ICON_FILE="$ROOT_DIR/Packaging/Assets/EasyMacBord.icns"
 DMG_STAGING_DIR="$(mktemp -d)"
 TEST_OUTPUT_FILE="$(mktemp)"
@@ -75,6 +75,10 @@ if [[ ! "$VERSION" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
   echo "Version must contain only letters, numbers, dots, underscores, or hyphens." >&2
   exit 1
 fi
+
+DMG_FILE="$DIST_DIR/EasyMacBord-${VERSION}-arm64.dmg"
+CHECKSUM_FILE="$DMG_FILE.sha256"
+MANIFEST_FILE="$DMG_FILE.manifest.json"
 
 GIT_COMMIT="$(git rev-parse --verify HEAD)"
 if [[ -n "$(git status --porcelain --untracked-files=normal)" ]]; then
