@@ -98,7 +98,7 @@
 
 ## 2026-08-27 · T05 状态读取、自动同步和高风险操作的边界
 
-- **决定：** 状态读取复用既有 `0x13 / S3R v1` 与 `0x11 / kind 0x04` 合同，先验证 request ID、分片、长度和 CRC，再消费 `ai_keyboard.config_status.v1`。通用设备语义动作要求 `semantic_actions=true`，两种 PTT 动作还要求两个 PTT 字段已读取。喝水提醒只在实际执行时更新通知状态；清空废纸篓先在本机确认；更新检查读取公开 GitHub Releases，Beta 包含预发布，且只展示 Release 信息、`arm64` DMG 与 SHA-256 外部链接。
+- **决定：** 状态读取复用既有 `0x13 / S3R v1` 与 `0x11 / kind 0x04` 合同，先验证 request ID、分片、长度和 CRC，再消费 `ai_keyboard.config_status.v1`。通用设备语义动作要求 `semantic_actions=true`，两种 PTT 动作分别要求对应 PTT 字段已读取。喝水提醒只在实际执行时更新通知状态；清空废纸篓先在本机确认；更新检查读取公开 GitHub Releases，Beta 包含预发布，且只展示 Release 信息、`arm64` DMG 与 SHA-256 外部链接。
 - **原因：** 状态字段必须有完整性边界，权限状态不能因登记动作提前改变，破坏性 Finder 操作和 ad-hoc 更新不应扩大到用户的文件或应用包。
 - **影响：** 校验失败保留上一次已校验状态；不满足能力门控时显示“设备未确认”；喝水提醒失败才显示通知调用失败；应用不下载、安装或替换自身，用户在默认浏览器中自行完成下载和放行。
 

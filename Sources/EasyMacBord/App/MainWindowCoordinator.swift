@@ -62,6 +62,10 @@ final class MainWindowCoordinator {
 
 @MainActor
 final class EasyMacBordApplicationDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSWindow.allowsAutomaticWindowTabbing = false
+    }
+
     func applicationShouldHandleReopen(
         _ sender: NSApplication,
         hasVisibleWindows flag: Bool
@@ -88,6 +92,7 @@ private final class MainWindowProbeView: NSView {
             window.setContentSize(NSSize(width: size.width, height: size.height))
         }
 #endif
+        window.tabbingMode = .disallowed
         MainWindowCoordinator.shared.register(window)
     }
 }

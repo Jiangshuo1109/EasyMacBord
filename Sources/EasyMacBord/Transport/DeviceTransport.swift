@@ -22,6 +22,66 @@ protocol ConfigurationTransport: AnyObject {
 enum TransportError: Swift.Error, Equatable {
     case unavailable(TransportChannel)
     case writeFailed(TransportChannel)
+    case statusRequestFailed(TransportChannel, StatusRequestFailure)
+}
+
+/// Tracks whether one BLE write sequence owns the serialized CoreBluetooth
+/// callback path. A timeout uses the same release path as a write callback,
+/// so a later sync can retry instead of remaining permanently blocked.
+struct BLEWriteGate: Equatable {
+    private(set) var isWriting = false
+
+    mutating func begin() -> Bool {
+        guard !isWriting else { return false }
+        isWriting = true
+        return true
+    }
+
+    mutating func finish() {
+        isWriting = false
+    }
+}
+
+/// A privacy-preserving observation of an input report. It deliberately keeps
+/// no report ID, key usage, payload, or timing information.
+struct HIDInputObservation: Equatable {
+    private(set) var totalReportCount = 0
+    private(set) var usbReportCount = 0
+    private(set) var bluetoothReportCount = 0
+    private(set) var latestChannel: TransportChannel?
+
+    mutating func record(from channel: TransportChannel) {
+        totalReportCount += 1
+        latestChannel = channel
+        switch channel {
+        case .usb:
+            usbReportCount += 1
+        case .bluetooth:
+            bluetoothReportCount += 1
+        }
+    }
+}
+
+enum StatusRequestFailure: Equatable {
+    case invalidReport
+    case deviceNotOpen
+    case unsupported
+    case disconnected
+    case inputMonitoringNotGranted
+    case featureReportNotPermitted
+    case other
+
+    var displayMessage: String {
+        switch self {
+        case .invalidReport: "参数不匹配"
+        case .deviceNotOpen: "HID 设备未打开"
+        case .unsupported: "HID 接口不支持该请求"
+        case .disconnected: "设备已断开"
+        case .inputMonitoringNotGranted: "输入监控授权未对当前应用生效"
+        case .featureReportNotPermitted: "输入监控已授权，但系统拒绝 HID Feature Report"
+        case .other: "系统拒绝该请求"
+        }
+    }
 }
 
 enum EventChannelRouter {
@@ -47,13 +107,28 @@ final class TransportRouter {
     /// Mirrors the device contract: USB is selected when available; a failed USB
     /// write is reported and never retried through Bluetooth.
     func send(_ frames: [DeviceProtocol.ConfigurationFrame]) async throws -> TransportChannel {
-        if usb.isAvailable {
-            try await usb.send(frames)
-            return .usb
+        guard let channel = configurationChannel else {
+            throw TransportError.unavailable(.bluetooth)
         }
-        guard bluetooth.isAvailable else { throw TransportError.unavailable(.bluetooth) }
-        try await bluetooth.send(frames)
-        return .bluetooth
+        return try await send(frames, through: channel)
+    }
+
+    /// A sync commits to the channel that was available when it started.
+    /// This prevents a connection change from silently switching a write or
+    /// accepting a confirmation from a different transport.
+    func send(
+        _ frames: [DeviceProtocol.ConfigurationFrame],
+        through channel: TransportChannel
+    ) async throws -> TransportChannel {
+        let transport = channel == .usb ? usb : bluetooth
+        guard transport.isAvailable else { throw TransportError.unavailable(channel) }
+        try await transport.send(frames)
+        return channel
+    }
+
+    var configurationChannel: TransportChannel? {
+        if usb.isAvailable { return .usb }
+        return bluetooth.isAvailable ? .bluetooth : nil
     }
 
     var activeEventChannel: TransportChannel? {

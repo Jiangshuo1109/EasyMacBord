@@ -50,9 +50,9 @@ struct ProfileEditorView: View {
     }
 
     private var canSync: Bool {
-        guard model.isLocalStateReady else { return false }
-        if case .connected = model.connection.state { return model.syncState != .sending }
-        return false
+        model.isLocalStateReady
+            && model.isConfigurationSyncAvailable
+            && model.syncState != .sending
     }
 
     private var saveSymbol: String {

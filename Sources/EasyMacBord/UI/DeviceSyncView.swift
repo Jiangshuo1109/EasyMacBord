@@ -9,21 +9,37 @@ struct DeviceSyncView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("仅展示应用已确认的设备信息")
+                    Text(model.isInputObserveOnly ? "输入观察" : "仅展示应用已确认的设备信息")
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Button("读取设备状态", systemImage: "arrow.clockwise") {
-                        model.requestDeviceStatus()
+                    if !model.isInputObserveOnly {
+                        Button("读取设备状态", systemImage: "arrow.clockwise") {
+                            model.requestDeviceStatus()
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(!isUSBActive)
+                        Button("同步当前配置", systemImage: "arrow.triangle.2.circlepath") {
+                            model.beginSync()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(accent)
+                        .disabled(!canSync)
                     }
-                    .buttonStyle(.bordered)
-                    .disabled(!isUSBActive)
-                    Button("同步当前配置", systemImage: "arrow.triangle.2.circlepath") {
-                        model.beginSync()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(accent)
-                    .disabled(!canSync)
                 }
+
+                if model.isInputObserveOnly {
+                    Label("输入观察模式", systemImage: "eye")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else if model.isStatusOnly {
+                    Label("只读状态模式：不会同步配置或连接蓝牙配置通道", systemImage: "eye")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                LabeledContent("状态读取", value: model.statusMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
 
                 VStack(alignment: .leading, spacing: 16) {
                     HStack(spacing: 14) {
@@ -49,32 +65,41 @@ struct DeviceSyncView: View {
                             color: isUSBActive ? .green : .secondary
                         )
                         ConnectionChannelRow(
-                            title: "蓝牙配置通道",
+                            title: bluetoothChannelTitle,
                             detail: bluetoothDetail,
                             color: isBluetoothActive ? .green : .secondary
                         )
                     }
 
-                    Divider()
-
-                    HStack(spacing: 0) {
-                        DeviceDetailItem(title: "固件版本", value: model.deviceDetails.firmwareVersion.title)
-                        DeviceDetailItem(title: "备用通道", value: model.deviceDetails.backupTransport.title)
-                        DeviceDetailItem(title: "设备能力", value: model.deviceDetails.capabilities.title)
-                    }
-
-                    if model.deviceDetails.pttHotkey != .unknown || model.deviceDetails.editPTTHotkey != .unknown {
+                    if model.isInputObserveOnly {
                         Divider()
                         HStack(spacing: 0) {
-                            DeviceDetailItem(title: "语音热键", value: model.deviceDetails.pttHotkey.title)
-                            DeviceDetailItem(title: "编辑热键", value: model.deviceDetails.editPTTHotkey.title)
+                            DeviceDetailItem(title: "标准 HID 报告", value: "\(model.hidInputObservation.totalReportCount)")
+                            DeviceDetailItem(title: "USB", value: "\(model.hidInputObservation.usbReportCount)")
+                            DeviceDetailItem(title: "蓝牙", value: "\(model.hidInputObservation.bluetoothReportCount)")
+                        }
+                    } else {
+                        Divider()
+                        HStack(spacing: 0) {
+                            DeviceDetailItem(title: "固件版本", value: model.deviceDetails.firmwareVersion.title)
+                            DeviceDetailItem(title: "备用通道", value: model.deviceDetails.backupTransport.title)
+                            DeviceDetailItem(title: "设备能力", value: model.deviceDetails.capabilities.title)
+                        }
+
+                        if model.deviceDetails.pttHotkey != .unknown || model.deviceDetails.editPTTHotkey != .unknown {
+                            Divider()
+                            HStack(spacing: 0) {
+                                DeviceDetailItem(title: "语音热键", value: model.deviceDetails.pttHotkey.title)
+                                DeviceDetailItem(title: "编辑热键", value: model.deviceDetails.editPTTHotkey.title)
+                            }
                         }
                     }
                 }
                 .padding(20)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
 
-                HStack(alignment: .top, spacing: 16) {
+                if !model.isInputObserveOnly {
+                    HStack(alignment: .top, spacing: 16) {
                     VStack(alignment: .leading, spacing: 14) {
                         HStack {
                             Text("同步确认")
@@ -126,6 +151,7 @@ struct DeviceSyncView: View {
                     .padding(18)
                     .frame(width: 300, alignment: .leading)
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                    }
                 }
             }
             .padding(28)
@@ -134,13 +160,14 @@ struct DeviceSyncView: View {
     }
 
     private var canSync: Bool {
-        guard model.isLocalStateReady else { return false }
+        guard model.isLocalStateReady, model.isConfigurationSyncAllowed else { return false }
         if case .connected = model.connection.state { return model.syncState != .sending }
         return false
     }
 
     private var connectionTitle: String {
         switch model.connection.state {
+        case .connected(.bluetooth) where model.isInputObserveOnly: "蓝牙 HID 已连接"
         case .connected(let channel): "\(channel.title) 已连接"
         case .connecting: "正在查找设备"
         case .disconnected: "未连接"
@@ -172,6 +199,10 @@ struct DeviceSyncView: View {
 
     private var bluetoothDetail: String {
         isBluetoothActive ? "当前活动通道" : "未读取"
+    }
+
+    private var bluetoothChannelTitle: String {
+        model.isInputObserveOnly ? "蓝牙 HID" : "蓝牙配置通道"
     }
 
     private var lastConfirmedTitle: String {

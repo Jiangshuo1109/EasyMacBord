@@ -10,6 +10,7 @@
 - T05 复用 Maker Status HID v1 的 `0x13 / S3R v1` 请求与 `0x11 / kind 0x04` 状态响应。只有校验通过的 `ai_keyboard.config_status.v1` 才能更新语义动作、PTT 热键和设备状态摘要。
 - T05 增加剪切、删除、回车、聚焦搜索、切换输入法的内建组合键预设，以及 1 至 1440 分钟、默认 30 分钟的喝水提醒。通知状态只在提醒动作实际执行后更新；清洁屏幕遮罩不拦截物理键盘，清空废纸篓必须本机确认。
 - 灯光和音乐律动在缺少新设备控制合同前为 `UNKNOWN / 不可用`；更新检查读取公开 GitHub Releases，Beta 包含预发布，只展示 Release 信息、`arm64` DMG 与 SHA-256 外部链接。
+- USB Status HID 已完成一次只读实机验证：`0x13 / S3R v1` 与 `0x11 / kind 0x04` 的 request ID、分片、长度、CRC、schema、`semantic_actions` 和两项 PTT 字段均通过。该结论不覆盖 `0x10 / S3C` 保存确认、BLE 配置或实体输入。
 
 ### 已实现（待合并）
 
@@ -17,17 +18,19 @@
 - T03 为动作库补充“从本机应用登记”：只读扫描常规应用程序目录，用户选择后才生成本地应用映射。
 - T03 增加可登记的直接工具：系统截图与录屏界面、锁定屏幕、仅防止闲置显示器休眠、用户选图壁纸、默认输出音量、隐藏前台应用和 Apple Music 基础控制。
 - 深色模式、屏保、键盘清洁、隐藏桌面文件/Dock、分屏、显示器亮度和键盘亮度以用户快捷指令模板接入，不新增私有系统实现。
+- BLE 配置写入在无 CoreBluetooth 回调时会超时释放，后续同步可重试；同步固定发送通道，仅接受同一通道的保存确认。PTT 状态字段允许缺失，缺失时只禁用对应 PTT 动作。
+- 内部打包脚本输出包含提交、工具链、测试数、DMG 摘要和签名摘要的 manifest；dirty 工作树的包只可用于诊断，不可作为候选发布物。
 
 ### 已验证
 
-- Xcode 27.0 beta 6 下 `swift test --jobs 4` 通过，97/97；`swift build --configuration release --arch arm64` 通过。
-- `scripts/package-app.sh 0.1.0-beta.1` 通过；最新 DMG 为 `Signature=adhoc`、`TeamIdentifier=not set`，SHA-256 为 `e6dd56fa8f5877e51a7e619fe6ac49946a3adede696e1f79c3c8ad62006a7619`。
+- 当前工作树下 `swift test --jobs 4` 通过，112/112；`swift build --configuration release --arch arm64` 通过。
+- `0.1.0-beta.1` 的历史内部包使用 ad-hoc 签名，`TeamIdentifier=not set`。下一候选包须从 clean 工作树生成 `.manifest.json` 后再记录其哈希。
 
 ### 尚未验证
 
 - 发布包已查看默认 `1280 x 800` 状态总览、动作库、宏键盘、设置和关于；仅保留总览截图，不构成两种目标尺寸或 UI-01 至 UI-06 的完整验收。
 - `1120 x 720`、Dock 重新打开、M-01 至 M-08 本机工具验收和任何设备真机矩阵仍未执行；本节不构成已发布功能记录。
-- T05 的两种目标窗口尺寸已在隔离 Debug 构建中观察；Dock 重新打开、M-01 至 M-08、真实状态读取、前台应用切换、应用内成功更新检查和硬件观察均待验收。本节不构成设备能力证明。
+- T05 的两种目标窗口尺寸已在隔离 Debug 构建中观察；Dock 重新打开、M-01 至 M-08、真实前台应用切换、应用内成功更新检查和实体输入观察均待验收。本节不构成设备能力证明。
 
 ## [0.1.0-beta.1] - 内部测试候选
 

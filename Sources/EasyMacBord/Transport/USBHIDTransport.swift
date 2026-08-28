@@ -9,6 +9,7 @@ final class USBHIDTransport: ConfigurationTransport {
     private(set) var isAvailable = false
     private(set) var isBluetoothHIDAvailable = false
     var appCommandHandler: ((TransportChannel, Data) -> Void)?
+    var standardHIDInputHandler: ((TransportChannel) -> Void)?
     var connectionHandler: ((Bool) -> Void)?
     var eventConnectionHandler: ((TransportChannel, Bool) -> Void)?
 
@@ -95,18 +96,28 @@ final class USBHIDTransport: ConfigurationTransport {
     /// input-report callback.
     func requestStatus(requestID: UInt32, fresh: Bool) throws {
         guard let activeDevice, isAvailable else { throw TransportError.unavailable(.usb) }
-        let request = try DeviceProtocol.makeStatusRequest(requestID: requestID, fresh: fresh)
-        let result = request.withUnsafeBytes { bytes in
+        let listenEventAccessGranted = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
+        let openResult = IOHIDDeviceOpen(activeDevice, IOOptionBits(kIOHIDOptionsTypeNone))
+        guard openResult == kIOReturnSuccess else {
+            throw TransportError.statusRequestFailed(
+                .usb,
+                statusRequestFailure(for: openResult, listenEventAccessGranted: listenEventAccessGranted)
+            )
+        }
+        let report = try DeviceProtocol.makeStatusFeatureReport(requestID: requestID, fresh: fresh)
+        let result = report.withUnsafeBytes { bytes in
             guard let address = bytes.baseAddress else { return kIOReturnBadArgument }
             return IOHIDDeviceSetReport(
                 activeDevice,
                 kIOHIDReportTypeFeature,
                 CFIndex(DeviceProtocol.statusRequestReportID),
                 address.assumingMemoryBound(to: UInt8.self),
-                request.count
+                report.count
             )
         }
-        guard result == kIOReturnSuccess else { throw TransportError.writeFailed(.usb) }
+        guard result == kIOReturnSuccess else {
+            throw TransportError.statusRequestFailed(.usb, statusRequestFailure(for: result))
+        }
     }
 
     var activeEventChannel: TransportChannel? {
@@ -127,25 +138,33 @@ final class USBHIDTransport: ConfigurationTransport {
         }
         eventConnectionHandler?(eventChannel, true)
 
-        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: DeviceProtocol.appCommandPayloadLength)
+        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: DeviceProtocol.appCommandPayloadLength + 1)
         inputBuffers.append(buffer)
         let inputContext = InputContext(transport: self, channel: eventChannel)
         inputContexts.append(inputContext)
         IOHIDDeviceRegisterInputReportCallback(
             device,
             buffer,
-            DeviceProtocol.appCommandPayloadLength,
+            DeviceProtocol.appCommandPayloadLength + 1,
             { context, _, _, _, reportID, report, reportLength in
-                guard let context, reportID == DeviceProtocol.appCommandReportID,
-                      reportLength == DeviceProtocol.appCommandPayloadLength else { return }
+                guard let context, reportID <= UInt32(UInt8.max) else { return }
+                let receivedReportID = UInt8(reportID)
                 MainActor.assumeIsolated {
                     let inputContext = Unmanaged<InputContext>.fromOpaque(context).takeUnretainedValue()
-                    inputContext.transport?.appCommandHandler?(inputContext.channel, Data(bytes: report, count: reportLength))
+                    guard let transport = inputContext.transport else { return }
+                    guard receivedReportID == DeviceProtocol.appCommandReportID else {
+                        transport.standardHIDInputHandler?(inputContext.channel)
+                        return
+                    }
+                    guard let payload = DeviceProtocol.normalizeIOKitAppCommandReport(
+                        reportID: receivedReportID,
+                        report: Data(bytes: report, count: reportLength)
+                    ) else { return }
+                    transport.appCommandHandler?(inputContext.channel, payload)
                 }
             },
             Unmanaged.passUnretained(inputContext).toOpaque()
         )
-        IOHIDDeviceOpen(device, IOOptionBits(kIOHIDOptionsTypeNone))
     }
 
     private func detach(_ device: IOHIDDevice) {
@@ -165,5 +184,20 @@ final class USBHIDTransport: ConfigurationTransport {
         TransportChannel.fromHIDTransportName(
             IOHIDDeviceGetProperty(device, kIOHIDTransportKey as CFString) as? String
         )
+    }
+
+    private func statusRequestFailure(
+        for result: IOReturn,
+        listenEventAccessGranted: Bool = false
+    ) -> StatusRequestFailure {
+        switch result {
+        case kIOReturnBadArgument: .invalidReport
+        case kIOReturnNotOpen: .deviceNotOpen
+        case kIOReturnUnsupported: .unsupported
+        case kIOReturnNoDevice: .disconnected
+        case kIOReturnNotPermitted:
+            listenEventAccessGranted ? .featureReportNotPermitted : .inputMonitoringNotGranted
+        default: .other
+        }
     }
 }

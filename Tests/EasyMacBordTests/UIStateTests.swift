@@ -62,6 +62,76 @@ final class UIStateTests: XCTestCase {
         XCTAssertNil(DebugUIState(arguments: ["EasyMacBord", "--ui-state", "unsupported"]))
     }
 
+    func testStatusOnlyLaunchModeDisablesConfigurationSyncAndBluetoothConfiguration() {
+        let mode = DeviceSession.AccessMode(arguments: ["EasyMacBord", "--status-only"])
+
+        XCTAssertEqual(mode, .usbStatusOnly)
+        XCTAssertFalse(mode.allowsConfigurationSync)
+        XCTAssertFalse(mode.startsBluetoothConfiguration)
+        XCTAssertTrue(mode.allowsStatusRead)
+        XCTAssertFalse(mode.allowsHostActionExecution)
+    }
+
+    func testInputObserveLaunchModeDisablesCommandsAndStatusReads() {
+        let mode = DeviceSession.AccessMode(arguments: ["EasyMacBord", "--input-observe-only", "--status-only"])
+
+        XCTAssertEqual(mode, .inputObserveOnly)
+        XCTAssertFalse(mode.allowsConfigurationSync)
+        XCTAssertFalse(mode.startsBluetoothConfiguration)
+        XCTAssertFalse(mode.allowsStatusRead)
+        XCTAssertFalse(mode.allowsHostActionExecution)
+        XCTAssertTrue(mode.observesStandardHIDInput)
+    }
+
+    func testReleaseLaunchIgnoresTestingAccessModeOverrides() {
+        let mode = AppLaunchConfiguration.deviceAccessMode(
+            arguments: ["EasyMacBord", "--input-observe-only"],
+            allowsTestingOverrides: false
+        )
+
+        XCTAssertEqual(mode, .standard)
+    }
+
+    func testDefaultLaunchModeKeepsStandardConfigurationBehavior() {
+        let mode = DeviceSession.AccessMode(arguments: ["EasyMacBord"])
+
+        XCTAssertEqual(mode, .standard)
+        XCTAssertTrue(mode.allowsConfigurationSync)
+        XCTAssertTrue(mode.startsBluetoothConfiguration)
+        XCTAssertTrue(mode.allowsStatusRead)
+        XCTAssertTrue(mode.allowsHostActionExecution)
+        XCTAssertFalse(mode.observesStandardHIDInput)
+    }
+
+    func testInputObservationKeepsOnlyChannelAndReportCounts() {
+        var observation = HIDInputObservation()
+
+        observation.record(from: .usb)
+        observation.record(from: .bluetooth)
+        observation.record(from: .usb)
+
+        XCTAssertEqual(observation.totalReportCount, 3)
+        XCTAssertEqual(observation.usbReportCount, 2)
+        XCTAssertEqual(observation.bluetoothReportCount, 1)
+        XCTAssertEqual(observation.latestChannel, .usb)
+    }
+
+    @MainActor
+    func testInputObserveModeIgnoresDeviceCommandsAndStatusReadRequests() {
+        let model = AppModel(startServices: false, deviceAccessMode: .inputObserveOnly)
+        let initialMessage = model.statusMessage
+
+        model.receiveAppCommand(Data(repeating: 0, count: DeviceProtocol.appCommandPayloadLength))
+
+        XCTAssertEqual(model.statusMessage, initialMessage)
+        XCTAssertEqual(model.syncState, .idle)
+        XCTAssertNil(model.syncHistory.latestFailure)
+
+        model.requestDeviceStatus()
+
+        XCTAssertEqual(model.statusMessage, "输入观察模式不读取设备状态")
+    }
+
     func testDebugWindowSizeParsesOnlyPositiveDimensions() {
         XCTAssertEqual(
             DebugWindowSize(arguments: ["EasyMacBord", "--window-size", "1120x720"]),
@@ -110,6 +180,20 @@ final class UIStateTests: XCTestCase {
         details.semanticActionsAvailable = true
         XCTAssertTrue(details.supports(.copy))
         XCTAssertTrue(details.supports(.voicePTTHold))
+    }
+
+    func testMissingPTTHotkeysOnlyDisableTheirSemanticActions() {
+        let details = DeviceDetails(
+            firmwareVersion: .value("0.1.26"),
+            capabilities: .value("semantic_actions=true"),
+            pttHotkey: .unknown,
+            editPTTHotkey: .unknown,
+            semanticActionsAvailable: true
+        )
+
+        XCTAssertTrue(details.supports(.copy))
+        XCTAssertFalse(details.supports(.voicePTTHold))
+        XCTAssertFalse(details.supports(.editPTTHold))
     }
 
     func testProfileWithUnsupportedSemanticActionIsHeldBackFromSync() {

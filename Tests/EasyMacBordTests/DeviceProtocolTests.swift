@@ -85,6 +85,47 @@ final class DeviceProtocolTests: XCTestCase {
         XCTAssertThrowsError(try DeviceProtocol.makeStatusRequest(requestID: 0))
     }
 
+    func testMakesIOKitStatusFeatureReportWithReportIDPrefix() throws {
+        let report = try DeviceProtocol.makeStatusFeatureReport(requestID: 0x7856_3412, fresh: true)
+
+        XCTAssertEqual(
+            Array(report),
+            [0x13, 0x53, 0x33, 0x52, 0x01, 0x12, 0x34, 0x56, 0x78, 0x01, 0, 0, 0, 0, 0, 0, 0]
+        )
+    }
+
+    func testNormalizesBothIOKitAppCommandReportLayouts() {
+        let payload = Data(repeating: 0x04, count: DeviceProtocol.appCommandPayloadLength)
+        let prefixed = Data([DeviceProtocol.appCommandReportID]) + payload
+
+        XCTAssertEqual(
+            DeviceProtocol.normalizeIOKitAppCommandReport(
+                reportID: DeviceProtocol.appCommandReportID,
+                report: payload
+            ),
+            payload
+        )
+        XCTAssertEqual(
+            DeviceProtocol.normalizeIOKitAppCommandReport(
+                reportID: DeviceProtocol.appCommandReportID,
+                report: prefixed
+            ),
+            payload
+        )
+        XCTAssertNil(
+            DeviceProtocol.normalizeIOKitAppCommandReport(
+                reportID: DeviceProtocol.appCommandReportID,
+                report: Data(repeating: 0, count: DeviceProtocol.appCommandPayloadLength + 1)
+            )
+        )
+    }
+
+    func testStatusRequestFailureMessagesDoNotContainDeviceDetails() {
+        XCTAssertEqual(StatusRequestFailure.deviceNotOpen.displayMessage, "HID 设备未打开")
+        XCTAssertEqual(StatusRequestFailure.inputMonitoringNotGranted.displayMessage, "输入监控授权未对当前应用生效")
+        XCTAssertEqual(StatusRequestFailure.featureReportNotPermitted.displayMessage, "输入监控已授权，但系统拒绝 HID Feature Report")
+    }
+
     func testReassemblesStatusChunksAndExposesFirmwareFields() throws {
         let json = Data("""
         {"schema":"ai_keyboard.config_status.v1","firmware":"0.1.26","capabilities":{"config_max_bytes":2048,"host_action_v1":true},"ptt_hotkey":"RightMeta","edit_ptt_hotkey":"RightOption"}
@@ -159,6 +200,29 @@ final class DeviceProtocolTests: XCTestCase {
         XCTAssertEqual(status?.firmware, "0.1.26")
         XCTAssertEqual(status?.capabilities["semantic_actions"], .boolean(true))
         XCTAssertNil(DeviceProtocol.decodeBLEDeviceStatus(Data("{}".utf8)))
+    }
+
+    func testDecodesStatusDocumentWithoutPTTHotkeys() throws {
+        let payload = Data("""
+        {"schema":"ai_keyboard.config_status.v1","firmware":"0.1.26","capabilities":{"semantic_actions":true}}
+        """.utf8)
+
+        let status = try XCTUnwrap(DeviceProtocol.decodeBLEDeviceStatus(payload))
+
+        XCTAssertEqual(status.capabilities["semantic_actions"], .boolean(true))
+        XCTAssertNil(status.pttHotkey)
+        XCTAssertNil(status.editPTTHotkey)
+    }
+
+    func testDecodesStatusDocumentWhenOnePTTHotkeyIsAbsent() throws {
+        let payload = Data("""
+        {"schema":"ai_keyboard.config_status.v1","firmware":"0.1.26","capabilities":{"semantic_actions":true},"ptt_hotkey":"RightMeta"}
+        """.utf8)
+
+        let status = try XCTUnwrap(DeviceProtocol.decodeBLEDeviceStatus(payload))
+
+        XCTAssertEqual(status.pttHotkey, "RightMeta")
+        XCTAssertNil(status.editPTTHotkey)
     }
 
     private func makeStatusReports(json: Data, requestID: UInt32) -> [Data] {

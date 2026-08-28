@@ -63,8 +63,8 @@ enum DeviceProtocol {
     struct DeviceStatus: Equatable {
         let firmware: String
         let capabilities: [String: CapabilityValue]
-        let pttHotkey: String
-        let editPTTHotkey: String
+        let pttHotkey: String?
+        let editPTTHotkey: String?
     }
 
     enum IncomingMessage: Equatable {
@@ -107,8 +107,7 @@ enum DeviceProtocol {
         }
     }
 
-    /// S3R v1 body sent with Feature Report ID 0x13. The IOKit caller passes
-    /// the report ID separately, so the returned data is exactly 16 bytes.
+    /// S3R v1 protocol body. The protocol body is always exactly 16 bytes.
     static func makeStatusRequest(requestID: UInt32, fresh: Bool = false) throws -> Data {
         guard requestID != 0 else { throw Error.invalidStatusRequest }
 
@@ -123,6 +122,29 @@ enum DeviceProtocol {
         payload[7] = UInt8((requestID >> 24) & 0xff)
         payload[8] = fresh ? 0x01 : 0x00
         return payload
+    }
+
+    /// IOKit requires the Report ID to be the first byte of a multi-report
+    /// Feature Report buffer, while the S3R v1 body itself remains 16 bytes.
+    static func makeStatusFeatureReport(requestID: UInt32, fresh: Bool = false) throws -> Data {
+        var report = Data([statusRequestReportID])
+        report.append(try makeStatusRequest(requestID: requestID, fresh: fresh))
+        return report
+    }
+
+    /// Normalizes the two input-report layouts observed from IOKit. Some
+    /// drivers retain the Report ID in the callback buffer while others pass
+    /// only the 63-byte payload.
+    static func normalizeIOKitAppCommandReport(reportID: UInt8, report: Data) -> Data? {
+        guard reportID == appCommandReportID else { return nil }
+        if report.count == appCommandPayloadLength {
+            return report
+        }
+        guard report.count == appCommandPayloadLength + 1,
+              report.first == appCommandReportID else {
+            return nil
+        }
+        return Data(report.dropFirst())
     }
 
     /// Decodes a single 63-byte `0x11 / kind 0x04` status response chunk.
@@ -300,9 +322,14 @@ enum DeviceProtocol {
         guard let root = try? JSONSerialization.jsonObject(with: json) as? [String: Any],
               root["schema"] as? String == statusSchema,
               let firmware = root["firmware"] as? String,
-              let capabilityObject = root["capabilities"] as? [String: Any],
-              let pttHotkey = root["ptt_hotkey"] as? String,
-              let editPTTHotkey = root["edit_ptt_hotkey"] as? String else {
+              let capabilityObject = root["capabilities"] as? [String: Any] else {
+            throw Error.invalidStatusDocument
+        }
+
+        let pttHotkey = root["ptt_hotkey"] as? String
+        let editPTTHotkey = root["edit_ptt_hotkey"] as? String
+        guard (root["ptt_hotkey"] == nil || pttHotkey != nil),
+              (root["edit_ptt_hotkey"] == nil || editPTTHotkey != nil) else {
             throw Error.invalidStatusDocument
         }
 

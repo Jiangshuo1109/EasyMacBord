@@ -18,6 +18,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var isLocalStateReady = false
     @Published private(set) var syncHistory = SyncHistory()
     @Published private(set) var deviceDetails = DeviceDetails()
+    @Published private(set) var hidInputObservation = HIDInputObservation()
     @Published private(set) var profileSaveState: LocalSaveState = .saved
     @Published private(set) var profileActivationRules: [ProfileActivationRule] = []
     @Published private(set) var isAutomaticProfileSwitching = true
@@ -28,7 +29,7 @@ final class AppModel: ObservableObject {
 #endif
 
     let permissions = PermissionCenter()
-    private var expectedAcknowledgement: (bytes: UInt16, crc16: UInt16)?
+    private var expectedAcknowledgement: ConfigurationAcknowledgementExpectation?
     private var syncTimeoutTask: Task<Void, Never>?
     private var profileSaveTask: Task<Void, Never>?
     private var hostActionSaveTask: Task<Void, Never>?
@@ -45,6 +46,7 @@ final class AppModel: ObservableObject {
     private var syncingProfileID: UUID?
     private var deviceStatusReadState = DeviceStatusReadState()
     private let deviceSession: DeviceSession
+    private let deviceAccessMode: DeviceSession.AccessMode
     private let profileStore = ProfileStore()
     private let hostActionStore = HostActionStore()
     private let inputPresetStore = InputPresetStore()
@@ -57,7 +59,12 @@ final class AppModel: ObservableObject {
 
     private static let automaticProfileSwitchingDefaultsKey = "preferences.automaticProfileSwitching"
 
-    init(startServices: Bool = true, defaults: UserDefaults = .standard) {
+    init(
+        startServices: Bool = true,
+        deviceAccessMode: DeviceSession.AccessMode = .standard,
+        defaults: UserDefaults = .standard
+    ) {
+        self.deviceAccessMode = deviceAccessMode
         self.defaults = defaults
         if defaults.object(forKey: Self.automaticProfileSwitchingDefaultsKey) == nil {
             isAutomaticProfileSwitching = true
@@ -68,8 +75,11 @@ final class AppModel: ObservableObject {
         deviceSession.appCommandHandler = { [weak self] payload in
             self?.receiveAppCommand(payload)
         }
-        deviceSession.confirmationHandler = { [weak self] acknowledgement in
-            self?.verify(acknowledgement)
+        deviceSession.observedStandardHIDInputHandler = { [weak self] channel in
+            self?.recordObservedStandardHIDInput(from: channel)
+        }
+        deviceSession.confirmationHandler = { [weak self] channel, acknowledgement in
+            self?.receiveConfigurationAcknowledgement(acknowledgement, from: channel)
         }
         deviceSession.statusHandler = { [weak self] status in
             self?.receiveDeviceStatus(status)
@@ -86,13 +96,38 @@ final class AppModel: ObservableObject {
             return
         }
 
+        if !deviceAccessMode.allowsConfigurationSync {
+            isLocalStateReady = true
+            statusMessage = deviceAccessMode.observesStandardHIDInput
+                ? "输入观察模式：正在查找 HID 设备"
+                : "只读状态模式：正在查找 USB 设备"
+            deviceSession.start(mode: deviceAccessMode)
+            return
+        }
+
         observeFrontmostApplications()
 
         Task { [weak self] in
             guard let self else { return }
             await self.restoreLocalState()
-            self.deviceSession.start()
+            self.deviceSession.start(mode: deviceAccessMode)
         }
+    }
+
+    var isConfigurationSyncAllowed: Bool {
+        deviceAccessMode.allowsConfigurationSync
+    }
+
+    var isConfigurationSyncAvailable: Bool {
+        isConfigurationSyncAllowed && connection.configurationChannel != nil
+    }
+
+    var isStatusOnly: Bool {
+        deviceAccessMode == .usbStatusOnly
+    }
+
+    var isInputObserveOnly: Bool {
+        deviceAccessMode.observesStandardHIDInput
     }
 
     var selectedProfile: Profile {
@@ -381,6 +416,12 @@ final class AppModel: ObservableObject {
     }
 
     private func beginSync(isAutomatic: Bool) {
+        guard deviceAccessMode.allowsConfigurationSync else {
+            if !isAutomatic {
+                statusMessage = "只读状态模式不允许同步配置"
+            }
+            return
+        }
         guard requireLocalStateReady() else { return }
         guard syncState != .sending else { return }
         if !isAutomatic {
@@ -397,7 +438,16 @@ final class AppModel: ObservableObject {
         do {
             let config = try FirmwareProfileSerializer.makeConfiguration(from: selectedProfile)
             let frames = try DeviceProtocol.makeConfigurationFrames(json: config)
-            expectedAcknowledgement = (UInt16(config.count), DeviceProtocol.crc16CCITT(config))
+            guard let channel = deviceSession.configurationChannel else {
+                recordSyncFailure("设备未建立可写入通道")
+                statusMessage = "配置未发送"
+                return
+            }
+            expectedAcknowledgement = ConfigurationAcknowledgementExpectation(
+                channel: channel,
+                bytes: UInt16(config.count),
+                crc16: DeviceProtocol.crc16CCITT(config)
+            )
             syncingProfileID = selectedProfileID
             syncState = .sending
             statusMessage = "正在等待设备确认"
@@ -405,7 +455,7 @@ final class AppModel: ObservableObject {
             Task { [weak self] in
                 guard let self else { return }
                 do {
-                    _ = try await deviceSession.sendConfiguration(frames)
+                    _ = try await deviceSession.sendConfiguration(frames, through: channel)
                 } catch {
                     guard self.syncState == .sending else { return }
                     recordSyncFailure("配置帧写入失败")
@@ -420,6 +470,10 @@ final class AppModel: ObservableObject {
     }
 
     func requestDeviceStatus() {
+        guard deviceAccessMode.allowsStatusRead else {
+            statusMessage = "输入观察模式不读取设备状态"
+            return
+        }
         guard requireLocalStateReady() else { return }
         guard connection.state == .connected(.usb) else {
             statusMessage = "设备状态仅在 USB 已连接时读取"
@@ -437,16 +491,19 @@ final class AppModel: ObservableObject {
                 self.deviceStatusReadState.finish()
                 self.statusMessage = "未收到有效设备状态"
             }
+        } catch TransportError.statusRequestFailed(_, let reason) {
+            statusMessage = "USB Feature Report 0x13 无法提交（\(reason.displayMessage)）"
         } catch {
             statusMessage = "设备未提供可读取的状态通道"
         }
     }
 
     func receiveAppCommand(_ payload: Data) {
+        guard deviceAccessMode.allowsHostActionExecution else { return }
         do {
             switch try DeviceProtocol.decodeAppCommand(payload: payload) {
-            case .configurationAcknowledgement(let acknowledgement):
-                verify(acknowledgement)
+            case .configurationAcknowledgement:
+                statusMessage = "收到未关联的配置确认"
             case .hostAction(let id):
                 executeHostAction(id)
             case .statusResponse:
@@ -459,13 +516,26 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func verify(_ acknowledgement: DeviceProtocol.ConfigurationAcknowledgement) {
-        guard let expected = expectedAcknowledgement,
-              acknowledgement.phase == 1,
-              acknowledgement.ok,
-              acknowledgement.saved,
-              acknowledgement.bytes == expected.bytes,
-              acknowledgement.crc16 == expected.crc16 else {
+    private func receiveConfigurationAcknowledgement(
+        _ acknowledgement: DeviceProtocol.ConfigurationAcknowledgement,
+        from channel: TransportChannel
+    ) {
+        guard deviceAccessMode.allowsConfigurationSync else { return }
+        verify(acknowledgement, from: channel)
+    }
+
+    private func recordObservedStandardHIDInput(from channel: TransportChannel) {
+        guard deviceAccessMode.observesStandardHIDInput else { return }
+        hidInputObservation.record(from: channel)
+        statusMessage = "已观察到\(inputChannelTitle(channel))标准 HID 报告"
+    }
+
+    private func verify(
+        _ acknowledgement: DeviceProtocol.ConfigurationAcknowledgement,
+        from channel: TransportChannel
+    ) {
+        guard let expected = expectedAcknowledgement else { return }
+        guard expected.matches(acknowledgement, from: channel) else {
             recordSyncFailure("设备确认与本次配置不一致")
             statusMessage = "设备未确认保存"
             expectedAcknowledgement = nil
@@ -781,8 +851,8 @@ final class AppModel: ObservableObject {
             firmwareVersion: .value(status.firmware),
             backupTransport: .unknown,
             capabilities: capabilitySummary.isEmpty ? .value("未声明") : .value(capabilitySummary),
-            pttHotkey: .value(status.pttHotkey),
-            editPTTHotkey: .value(status.editPTTHotkey),
+            pttHotkey: status.pttHotkey.map(DeviceInformationState.value) ?? .unknown,
+            editPTTHotkey: status.editPTTHotkey.map(DeviceInformationState.value) ?? .unknown,
             semanticActionsAvailable: semanticActionsAvailable
         )
         statusMessage = "已读取设备状态"
@@ -790,12 +860,26 @@ final class AppModel: ObservableObject {
 
     private func didChangeConnection(_ connection: DeviceConnection) {
         self.connection = connection
-        statusMessage = connection.state == .disconnected ? "等待设备连接" : "设备已连接"
+        if deviceAccessMode.allowsConfigurationSync {
+            statusMessage = connection.state == .disconnected ? "等待设备连接" : "设备已连接"
+        } else if deviceAccessMode.observesStandardHIDInput {
+            statusMessage = connection.state == .disconnected ? "输入观察模式：等待 HID 设备" : "输入观察模式：HID 已连接"
+        } else {
+            statusMessage = connection.state == .disconnected ? "只读状态模式：等待 USB 设备" : "只读状态模式：USB 已连接"
+        }
+        guard deviceAccessMode.allowsConfigurationSync else { return }
         guard case .connected = connection.state,
               let pendingProfileID = pendingAutomaticSyncProfileID,
               profileSaveState == .saved,
               syncState != .sending else { return }
         scheduleAutomaticSync(for: pendingProfileID)
+    }
+
+    private func inputChannelTitle(_ channel: TransportChannel) -> String {
+        switch channel {
+        case .usb: "USB "
+        case .bluetooth: "蓝牙 "
+        }
     }
 
     private func observeFrontmostApplications() {

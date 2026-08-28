@@ -11,9 +11,9 @@ EasyMacBord 是 EasyInput V2.0 的 macOS 日常效率工具。它负责配置档
 - 本机动作：打开用户选择的应用、网址、macOS 快捷指令和少量系统动作；动作库还维护可复用的固定文本与键盘组合键预设。界面不显示 UUID、绝对路径或安全书签。
 - 使用现有 EasyInput V2.0 协议，不改动 Maker 固件、GPIO、设备身份、HID/GATT 描述符和 Flash 分区。
 
-T05“动作与场景”已在功能分支实现：前台应用规则只按 Bundle ID 切换既有配置档；状态读取以现有 `0x13 / S3R v1` 与 `0x11 / kind 0x04` 合同校验状态；语义动作按能力与 PTT 字段门控。动作库新增五个内建组合键预设、可配置喝水提醒、清洁屏幕遮罩和废纸篓本机确认；灯光和音乐律动仍未接入。关于页只检查公开 GitHub Releases，Beta 包含预发布，只展示 Release 信息、`arm64` DMG 与 SHA-256 外部链接，不提供自动更新。
+T05“动作与场景”已在功能分支实现：前台应用规则只按 Bundle ID 切换既有配置档；状态读取以现有 `0x13 / S3R v1` 与 `0x11 / kind 0x04` 合同校验状态；语义动作按能力与各自的 PTT 字段门控。动作库新增五个内建组合键预设、可配置喝水提醒、清洁屏幕遮罩和废纸篓本机确认；灯光和音乐律动仍未接入。关于页只检查公开 GitHub Releases，Beta 包含预发布，只展示 Release 信息、`arm64` DMG 与 SHA-256 外部链接，不提供自动更新。
 
-当前 T05 的 `swift test --jobs 4` 为 97/97，Release 构建、ad-hoc `arm64` DMG 和 checksum 均已验证；`1280 x 800` 与 `1120 x 720` 的 Debug 界面观察见 [T05 UI 证据](flow/evidence/t05-actions-scenes/UI-验收-2026-08-27.md)。Dock 重新打开、本机工具、应用内成功更新检查、状态回包和真机矩阵仍待实际验证，详见 [T05 任务卡](flow/tasks/T05-动作与场景.md)。
+当前工作树的 `swift test --jobs 4` 为 112/112，arm64 Release 构建通过。USB Status HID 已在兼容设备上完成请求、分片、长度、CRC、schema 与能力字段的只读验证；这不代表配置写入、BLE 配置通道、实体输入或 Host Action 已验收。`1280 x 800` 与 `1120 x 720` 的 Debug 界面观察见 [T05 UI 证据](flow/evidence/t05-actions-scenes/UI-验收-2026-08-27.md)。Dock 重新打开、本机工具、应用内成功更新检查和真机矩阵仍待实际验证，详见 [T05 任务卡](flow/tasks/T05-动作与场景.md)。
 
 AI、TTS、板端录音、Wi-Fi 音频、音乐律动和外接显示器 DDC 不属于 v0.1。
 
@@ -23,10 +23,10 @@ AI、TTS、板端录音、Wi-Fi 音频、音乐律动和外接显示器 DDC 不�
 
 ```bash
 swift test --jobs 4
-scripts/package-app.sh 0.1.0-beta.1
+scripts/package-app.sh 0.1.0-beta.2
 ```
 
-脚本生成 `.app`、DMG 和对应 SHA-256 摘要。应用使用 ad-hoc 签名，不含开发团队标识、Developer ID 或公证。其他 Mac 首次打开时可能需要在系统设置中手动放行。
+脚本生成 `.app`、DMG、SHA-256 摘要和候选包 manifest。应用使用 ad-hoc 签名，不含开发团队标识、Developer ID 或公证。其他 Mac 首次打开时可能需要在系统设置中手动放行。
 
 ## 文档
 

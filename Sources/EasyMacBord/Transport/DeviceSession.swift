@@ -2,8 +2,45 @@ import Foundation
 
 @MainActor
 final class DeviceSession {
+    enum AccessMode: Equatable {
+        case standard
+        case usbStatusOnly
+        case inputObserveOnly
+
+        init(arguments: [String]) {
+            if arguments.contains("--input-observe-only") {
+                self = .inputObserveOnly
+            } else if arguments.contains("--status-only") {
+                self = .usbStatusOnly
+            } else {
+                self = .standard
+            }
+        }
+
+        var allowsConfigurationSync: Bool {
+            self == .standard
+        }
+
+        var startsBluetoothConfiguration: Bool {
+            self == .standard
+        }
+
+        var allowsStatusRead: Bool {
+            self != .inputObserveOnly
+        }
+
+        var allowsHostActionExecution: Bool {
+            self == .standard
+        }
+
+        var observesStandardHIDInput: Bool {
+            self == .inputObserveOnly
+        }
+    }
+
     var appCommandHandler: ((Data) -> Void)?
-    var confirmationHandler: ((DeviceProtocol.ConfigurationAcknowledgement) -> Void)?
+    var observedStandardHIDInputHandler: ((TransportChannel) -> Void)?
+    var confirmationHandler: ((TransportChannel, DeviceProtocol.ConfigurationAcknowledgement) -> Void)?
     var statusHandler: ((DeviceProtocol.DeviceStatus) -> Void)?
     var statusErrorHandler: ((DeviceProtocol.Error) -> Void)?
     var connectionHandler: ((DeviceConnection) -> Void)?
@@ -13,46 +50,44 @@ final class DeviceSession {
     private lazy var router = TransportRouter(usb: usb, bluetooth: bluetooth)
     private var statusReassembler = DeviceProtocol.StatusResponseReassembler()
     private var nextStatusRequestID: UInt32 = 1
+    private var accessMode: AccessMode = .standard
 
     init() {
         usb.appCommandHandler = { [weak self] channel, payload in
             self?.receiveHID(channel: channel, payload: payload)
         }
+        usb.standardHIDInputHandler = { [weak self] channel in
+            self?.receiveStandardHIDInput(channel: channel)
+        }
         usb.connectionHandler = { [weak self] connected in
-            self?.connectionHandler?(DeviceConnection(
-                state: connected ? .connected(.usb) : self?.fallbackConnectionState() ?? .disconnected,
-                name: "EasyInput AI"
-            ))
+            self?.publishConnection()
         }
         usb.eventConnectionHandler = { [weak self] channel, connected in
-            guard channel == .bluetooth, let self, !self.usb.isAvailable else { return }
-            self.connectionHandler?(DeviceConnection(
-                state: connected ? .connected(.bluetooth) : self.fallbackConnectionState(),
-                name: "EasyInput AI"
-            ))
+            self?.publishConnection()
         }
         bluetooth.connectionHandler = { [weak self] connected in
-            guard let self, !self.usb.isAvailable else { return }
-            self.connectionHandler?(DeviceConnection(
-                state: connected ? .connected(.bluetooth) : .disconnected,
-                name: "EasyInput AI"
-            ))
+            self?.publishConnection()
         }
         bluetooth.statusHandler = { [weak self] data in
             guard let self else { return }
-            if let status = DeviceProtocol.decodeBLEDeviceStatus(data) {
+            if self.accessMode.allowsStatusRead,
+               let status = DeviceProtocol.decodeBLEDeviceStatus(data) {
                 self.statusHandler?(status)
             }
-            if let acknowledgement = DeviceProtocol.decodeBLEConfirmationStatus(data) {
-                self.confirmationHandler?(acknowledgement)
+            if self.accessMode.allowsConfigurationSync,
+               let acknowledgement = DeviceProtocol.decodeBLEConfirmationStatus(data) {
+                self.confirmationHandler?(.bluetooth, acknowledgement)
             }
         }
     }
 
-    func start() {
+    func start(mode: AccessMode = .standard) {
+        accessMode = mode
         connectionHandler?(DeviceConnection(state: .connecting, name: "EasyInput AI"))
         usb.start()
-        bluetooth.start()
+        if mode.startsBluetoothConfiguration {
+            bluetooth.start()
+        }
     }
 
     func stop() {
@@ -61,8 +96,16 @@ final class DeviceSession {
         connectionHandler?(DeviceConnection(state: .disconnected, name: "EasyInput AI"))
     }
 
-    func sendConfiguration(_ frames: [DeviceProtocol.ConfigurationFrame]) async throws -> TransportChannel {
-        try await router.send(frames)
+    var configurationChannel: TransportChannel? {
+        router.configurationChannel
+    }
+
+    func sendConfiguration(
+        _ frames: [DeviceProtocol.ConfigurationFrame],
+        through channel: TransportChannel
+    ) async throws -> TransportChannel {
+        guard accessMode.allowsConfigurationSync else { throw TransportError.writeFailed(.usb) }
+        return try await router.send(frames, through: channel)
     }
 
     /// USB is the sole active status-request transport. BLE status remains a
@@ -70,6 +113,9 @@ final class DeviceSession {
     /// status reads.
     @discardableResult
     func requestStatus(fresh: Bool = true) throws -> UInt32 {
+        guard accessMode.allowsStatusRead else {
+            throw TransportError.statusRequestFailed(.usb, .unsupported)
+        }
         let requestID = allocateStatusRequestID()
         try statusReassembler.begin(requestID: requestID)
         do {
@@ -84,6 +130,7 @@ final class DeviceSession {
     private func receiveHID(channel: TransportChannel, payload: Data) {
         guard usb.activeEventChannel == channel else { return }
         if payload.first == DeviceProtocol.statusResponseKind {
+            guard accessMode.allowsStatusRead else { return }
             do {
                 if let status = try statusReassembler.receive(payload: payload) {
                     statusHandler?(status)
@@ -95,7 +142,20 @@ final class DeviceSession {
             }
             return
         }
+        if accessMode.allowsConfigurationSync,
+           let message = try? DeviceProtocol.decodeAppCommand(payload: payload),
+           case let .configurationAcknowledgement(acknowledgement) = message {
+            confirmationHandler?(channel, acknowledgement)
+            return
+        }
+        guard accessMode.allowsHostActionExecution else { return }
         appCommandHandler?(payload)
+    }
+
+    private func receiveStandardHIDInput(channel: TransportChannel) {
+        guard accessMode.observesStandardHIDInput,
+              usb.activeEventChannel == channel else { return }
+        observedStandardHIDInputHandler?(channel)
     }
 
     private func allocateStatusRequestID() -> UInt32 {
@@ -107,7 +167,13 @@ final class DeviceSession {
         return requestID
     }
 
-    private func fallbackConnectionState() -> DeviceConnection.State {
-        bluetooth.isAvailable ? .connected(.bluetooth) : .disconnected
+    private func publishConnection() {
+        let inputChannel = usb.activeEventChannel
+        let configurationChannel = router.configurationChannel
+        connectionHandler?(DeviceConnection.current(
+            name: "EasyInput AI",
+            activeInputChannel: inputChannel,
+            configurationChannel: configurationChannel
+        ))
     }
 }

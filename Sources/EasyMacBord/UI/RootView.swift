@@ -43,6 +43,42 @@ struct RootView: View {
     @State private var selection: AppSection? = .overview
 
     var body: some View {
+        Group {
+#if DEBUG
+            if model.isInputObserveOnly {
+                DeviceSyncView(model: model)
+            } else {
+                standardContent
+            }
+#else
+            standardContent
+#endif
+        }
+        .overlay {
+            if model.isScreenCleanerPresented {
+                ScreenCleanerOverlay(close: model.closeScreenCleaner)
+            }
+        }
+        .confirmationDialog(
+            "确认清空废纸篓",
+            isPresented: Binding(
+                get: { model.pendingDestructiveAction != nil },
+                set: { if !$0 { model.cancelPendingDestructiveAction() } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("清空废纸篓", role: .destructive) {
+                model.confirmPendingDestructiveAction()
+            }
+            Button("取消", role: .cancel) {
+                model.cancelPendingDestructiveAction()
+            }
+        } message: {
+            Text("此操作会删除废纸篓中的项目，无法撤销。")
+        }
+    }
+
+    private var standardContent: some View {
         NavigationSplitView {
             VStack(spacing: 0) {
                 List(selection: $selection) {
@@ -92,28 +128,6 @@ struct RootView: View {
             case .about:
                 AboutView()
             }
-        }
-        .overlay {
-            if model.isScreenCleanerPresented {
-                ScreenCleanerOverlay(close: model.closeScreenCleaner)
-            }
-        }
-        .confirmationDialog(
-            "确认清空废纸篓",
-            isPresented: Binding(
-                get: { model.pendingDestructiveAction != nil },
-                set: { if !$0 { model.cancelPendingDestructiveAction() } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("清空废纸篓", role: .destructive) {
-                model.confirmPendingDestructiveAction()
-            }
-            Button("取消", role: .cancel) {
-                model.cancelPendingDestructiveAction()
-            }
-        } message: {
-            Text("此操作会删除废纸篓中的项目，无法撤销。")
         }
     }
 }
@@ -214,16 +228,22 @@ struct MenuPanel: View {
 
             Divider()
 
-            Text("当前配置档")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Picker("当前配置档", selection: $model.selectedProfileID) {
-                ForEach(model.profiles) { profile in
-                    Text(profile.name).tag(profile.id)
+            if model.isInputObserveOnly {
+                Text("输入观察模式")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("当前配置档")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("当前配置档", selection: $model.selectedProfileID) {
+                    ForEach(model.profiles) { profile in
+                        Text(profile.name).tag(profile.id)
+                    }
                 }
+                .labelsHidden()
+                .disabled(!model.isLocalStateReady)
             }
-            .labelsHidden()
-            .disabled(!model.isLocalStateReady)
 
             Button("打开设置", systemImage: "gearshape") {
                 MainWindowCoordinator.shared.showMainWindow()

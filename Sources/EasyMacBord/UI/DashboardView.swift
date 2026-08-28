@@ -141,7 +141,7 @@ struct DashboardView: View {
     }
 
     private var canSync: Bool {
-        guard model.isLocalStateReady else { return false }
+        guard model.isLocalStateReady, model.isConfigurationSyncAllowed else { return false }
         if case .connected = model.connection.state { return model.syncState != .sending }
         return false
     }

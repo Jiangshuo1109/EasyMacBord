@@ -4,6 +4,16 @@ enum AppWindowID {
     static let main = "main-window"
 }
 
+enum AppLaunchConfiguration {
+    static func deviceAccessMode(
+        arguments: [String],
+        allowsTestingOverrides: Bool
+    ) -> DeviceSession.AccessMode {
+        guard allowsTestingOverrides else { return .standard }
+        return DeviceSession.AccessMode(arguments: arguments)
+    }
+}
+
 @main
 struct EasyMacBordApp: App {
     @StateObject private var model: AppModel
@@ -12,6 +22,10 @@ struct EasyMacBordApp: App {
 
     init() {
 #if DEBUG
+        let deviceAccessMode = AppLaunchConfiguration.deviceAccessMode(
+            arguments: ProcessInfo.processInfo.arguments,
+            allowsTestingOverrides: true
+        )
         let debugUIState = DebugUIState(arguments: ProcessInfo.processInfo.arguments)
         if let debugUIState {
             let defaults = Self.debugDefaults()
@@ -20,11 +34,15 @@ struct EasyMacBordApp: App {
             _preferences = StateObject(wrappedValue: AppPreferences(defaults: defaults))
             _model = StateObject(wrappedValue: model)
         } else {
-            _model = StateObject(wrappedValue: AppModel())
+            _model = StateObject(wrappedValue: AppModel(deviceAccessMode: deviceAccessMode))
             _preferences = StateObject(wrappedValue: AppPreferences())
         }
 #else
-        _model = StateObject(wrappedValue: AppModel())
+        let deviceAccessMode = AppLaunchConfiguration.deviceAccessMode(
+            arguments: ProcessInfo.processInfo.arguments,
+            allowsTestingOverrides: false
+        )
+        _model = StateObject(wrappedValue: AppModel(deviceAccessMode: deviceAccessMode))
         _preferences = StateObject(wrappedValue: AppPreferences())
 #endif
     }
@@ -39,9 +57,7 @@ struct EasyMacBordApp: App {
 #endif
 
     var body: some Scene {
-        // Keep the primary window first so a normal launch creates it; the
-        // menu-bar item is an additional entry point, not the app's only UI.
-        WindowGroup("EasyMacBord", id: AppWindowID.main) {
+        Window("EasyMacBord", id: AppWindowID.main) {
             MainWindowHost {
                 RootView(model: model, preferences: preferences)
             }

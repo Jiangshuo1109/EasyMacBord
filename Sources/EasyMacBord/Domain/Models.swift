@@ -189,6 +189,24 @@ enum TransportChannel: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+struct ConfigurationAcknowledgementExpectation: Equatable {
+    let channel: TransportChannel
+    let bytes: UInt16
+    let crc16: UInt16
+
+    func matches(
+        _ acknowledgement: DeviceProtocol.ConfigurationAcknowledgement,
+        from channel: TransportChannel
+    ) -> Bool {
+        self.channel == channel
+            && acknowledgement.phase == 1
+            && acknowledgement.ok
+            && acknowledgement.saved
+            && acknowledgement.bytes == bytes
+            && acknowledgement.crc16 == crc16
+    }
+}
+
 struct DeviceConnection: Equatable {
     enum State: Equatable {
         case disconnected
@@ -199,8 +217,33 @@ struct DeviceConnection: Equatable {
 
     var state: State
     var name: String
+    /// The HID source that can currently emit device input. This is separate
+    /// from the GATT or USB path that can receive configuration frames.
+    var activeInputChannel: TransportChannel? = nil
+    var configurationChannel: TransportChannel? = nil
 
     static let preview = DeviceConnection(state: .connected(.usb), name: "EasyInput AI")
+
+    static func current(
+        name: String,
+        activeInputChannel: TransportChannel?,
+        configurationChannel: TransportChannel?
+    ) -> Self {
+        let state: State
+        if let activeInputChannel {
+            state = .connected(activeInputChannel)
+        } else if let configurationChannel {
+            state = .connected(configurationChannel)
+        } else {
+            state = .disconnected
+        }
+        return Self(
+            state: state,
+            name: name,
+            activeInputChannel: activeInputChannel,
+            configurationChannel: configurationChannel
+        )
+    }
 }
 
 enum SyncState: Equatable {

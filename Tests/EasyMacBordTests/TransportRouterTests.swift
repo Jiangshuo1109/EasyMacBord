@@ -52,4 +52,48 @@ final class TransportRouterTests: XCTestCase {
         )
         XCTAssertNil(EventChannelRouter.activeEventChannel(usbAvailable: false, bluetoothHIDAvailable: false))
     }
+
+    func testBLEWriteGateAllowsRetryAfterTimeoutRelease() {
+        var gate = BLEWriteGate()
+
+        XCTAssertTrue(gate.begin())
+        XCTAssertFalse(gate.begin())
+
+        // The transport invokes the same release method when its watchdog
+        // expires without receiving a CoreBluetooth write callback.
+        gate.finish()
+
+        XCTAssertFalse(gate.isWriting)
+        XCTAssertTrue(gate.begin())
+    }
+
+    func testConfigurationAcknowledgementMustMatchTheSendingChannel() {
+        let expected = ConfigurationAcknowledgementExpectation(
+            channel: .usb,
+            bytes: 128,
+            crc16: 0x12ab
+        )
+        let acknowledgement = DeviceProtocol.ConfigurationAcknowledgement(
+            phase: 1,
+            ok: true,
+            bytes: 128,
+            crc16: 0x12ab,
+            saved: true
+        )
+
+        XCTAssertTrue(expected.matches(acknowledgement, from: .usb))
+        XCTAssertFalse(expected.matches(acknowledgement, from: .bluetooth))
+    }
+
+    func testBluetoothHIDRemainsVisibleAfterUSBConfigurationDisconnects() {
+        let connection = DeviceConnection.current(
+            name: "EasyInput AI",
+            activeInputChannel: .bluetooth,
+            configurationChannel: nil
+        )
+
+        XCTAssertEqual(connection.state, .connected(.bluetooth))
+        XCTAssertEqual(connection.activeInputChannel, .bluetooth)
+        XCTAssertNil(connection.configurationChannel)
+    }
 }
