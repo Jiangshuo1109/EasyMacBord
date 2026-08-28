@@ -1,9 +1,9 @@
 # 内部 Beta 验收清单
 
-- 候选包：`0.1.0-beta.3`
-- 候选提交：`af07bbd2858fe5465e567a272187d74282c8986e`
-- DMG：`dist/EasyMacBord-0.1.0-beta.3-arm64.dmg`
-- SHA-256：`67a8fcb73f2245588f89cf20f70ac2de1860298f24ce373fdfe50410ec2bd788`
+- 候选包：`0.1.0-beta.4`
+- 候选提交：`51f4c4c51d3a2e39d6e0ad95c9fd5d1c1311ee0d`
+- DMG：`dist/EasyMacBord-0.1.0-beta.4-arm64.dmg`
+- SHA-256：`1fa2af4b6411cddb92a140dbb782a97eb9fb9849990a01222bafbd0bb33f7e79`
 
 本清单用于内部 Beta 的现场收口。每项只在实际观察后填写 `PASS`、`FAIL` 或 `UNKNOWN`；无记录即为 `UNKNOWN`。不修改 Maker 固件、HID/GATT 合同、GPIO、Flash 分区或设备身份。
 
@@ -45,7 +45,7 @@
 
 ## 收口条件
 
-- [ ] 113 项 Swift 测试持续通过，BLE 无回调重试、PTT 缺失、双连接切换、异通道确认忽略及同通道不一致确认失败均有自动化覆盖。
+- [ ] 114 项 Swift 测试持续通过，BLE 无回调重试、PTT 缺失、双连接切换、异通道确认忽略及同通道不一致确认失败均有自动化覆盖。
 - [ ] 硬件表中全部项目不再为 `UNKNOWN`，失败项已记录复现条件和失败层。
 - [ ] M、T04 UI、T05 三类现场记录独立完整，所有可改变系统状态的项目均已恢复。
 - [ ] 候选提交、测试数、DMG 哈希、签名摘要和发布说明一致；分支已推送，CI 结果可追溯。

@@ -23,8 +23,8 @@
 
 ### 已验证
 
-- 当前工作树下 `swift test --jobs 4` 通过，113/113；`swift build --configuration release --arch arm64` 通过。
-- `0.1.0-beta.3` 已由干净提交 `af07bbd2858fe5465e567a272187d74282c8986e` 生成内部候选包，DMG SHA-256 为 `67a8fcb73f2245588f89cf20f70ac2de1860298f24ce373fdfe50410ec2bd788`。manifest、摘要、严格签名和 arm64 架构已复核；签名仍为 ad-hoc，`TeamIdentifier=not set`。
+- 当前工作树下 `swift test --jobs 4` 通过，114/114；`swift build --configuration release --arch arm64` 通过。新增测试覆盖 USB 等待确认期间收到 BLE 确认时，应用保持等待 USB、不生成保存收据。
+- `0.1.0-beta.4` 已由干净提交 `51f4c4c51d3a2e39d6e0ad95c9fd5d1c1311ee0d` 生成内部候选包，DMG SHA-256 为 `1fa2af4b6411cddb92a140dbb782a97eb9fb9849990a01222bafbd0bb33f7e79`。manifest、摘要、严格签名和 arm64 架构已复核；签名仍为 ad-hoc，`TeamIdentifier=not set`。
 
 ### 尚未验证
 
